@@ -88,7 +88,11 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
                "WVAP": Tally("WVAP"),
                "T16SENR": Tally("T16SENR"), #added
                "T16SEND": Tally("T16SEND"), #added
-               "T16SEN": Tally("T16SEND", "T16SENR"), #added
+               "T16SEN": Election(
+                           "2016 Senate",
+                           {"Democratic": "T16SEND", "Republican": "T16SENR"},
+                           alias="T16SEN" #added to do eg . . .
+                           ),
                "PRES16R": Tally("PRES16R"),
                #"ELECTION": election,
                "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},

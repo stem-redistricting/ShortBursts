@@ -8,9 +8,11 @@ Created on Wed Mar 29 16:39:49 2023
 
 from gerrychain import (GeographicPartition, Partition, Graph, MarkovChain,
                         proposals, updaters, constraints, accept, Election)
+from gerrychain.updaters import (cut_edges, election)
 from gerrychain.proposals import recom, propose_random_flip
 from functools import (partial, reduce)
 import numpy as np
+import pandas as pd
 import random
 from statistics import mean
 
@@ -28,15 +30,16 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05,
     if compactness:
         compactness_bound = constraints.UpperBound(lambda p: len(p["cut_edges"]),
                             2*len(initial_part["cut_edges"]))
+        eg_bound = constraints.Bounds(lambda p: [p["T16SEN"].efficiency_gap()], (-0.08, 0.08))  #brackets turn it into a list so it's iterable
         cs = [constraints.within_percent_of_ideal_population(initial_part, epsilon),
-              compactness_bound]
+              compactness_bound] #, eg_bound]  #FOR WHEN WE WANT TO ADD THIS!!!
     else:
         cs = [constraints.within_percent_of_ideal_population(initial_part, epsilon)]
 
 
     if accept_func == None: accept_func = accept.always_accept
-
-    return MarkovChain(proposal=proposal, constraints=cs,
+    is_valid = constraints.Validator(cs)  #added
+    return MarkovChain(proposal=proposal, constraints = is_valid,
                        accept=accept_func, initial_state=initial_part,
                        total_steps=iters) 
 
@@ -59,7 +62,7 @@ class Gingleator:
         self.minority_perc = minority_perc_col
         self.pop_col = pop_col
         self.epsilon = epsilon
-        #self.election = initial_partition.updaters["ELECTION"]  #THIS IS NEW
+
 
 
     def init_minority_perc_col(self, minority_pop_col, other_pop_col,
@@ -274,7 +277,7 @@ class Gingleator:
             if part.parent == None: return True
             part_score = self.score(part, self.minority_perc, self.threshold)
             prev_score = self.score(part.parent, self.minority_perc, self.threshold)
-            eg_score = self.eg(part, self.minority_perc, self.threshold, self.seats)
+            eg_score = self.eg(part, self.minority_perc, self.seats)
             #print("eg is", eg_score)
             if maximize and part_score >= prev_score and eg_score < 0.08 and eg_score > -0.08: return True
             elif not maximize and part_score <= prev_score  and eg_score < 0.08 and eg_score > -0.08: return True
@@ -302,17 +305,45 @@ class Gingleator:
     
     #Ellen added eg score below
     @classmethod
-    def eg(cls, part, minority_perc, threshold, seats):
+    def eg(cls, part, minority_perc, seats):
         """
-        num_opportunity_dists: given a partition, name of the minority percent updater, and a
-                               threshold, returns the number of opportunity districts.
+        eg: given a partition, name of the minority percent updater, and the number of seats
+                                that party won, return the Efficiency Gap (defined using only
+                                seat share and vote share)
         """
-        #print(part[minority_perc].values())
-        V = mean(part[minority_perc].values())
-        S = cls.num_opportunity_dists(part, minority_perc, threshold)/seats
-        #print("V is ", V, "S is", S)
-        return S-2*V+1/2
 
+        V = mean(part[minority_perc].values())
+        S = cls.num_opportunity_dists(part, minority_perc, 0.5)/seats
+        print("V is ", V, "S is", S, "eg is ", S-2*V+1/2)
+        return S-2*V+1/2
+    
+    #Ellen added geo score below
+    @classmethod
+    def geo(cls, part):
+        """
+
+        Parameters
+        ----------
+        part : the partition
+
+        Returns
+        -------
+        Geo score for that map
+
+        """
+        # First find the set of edges from the partition, put into a dataframe
+        edges_set=set()
+        for e in part["cut_edges"]:
+            edges_set.add( (part.assignment[e[0]],part.assignment[e[1]] ))
+        edges_list = list(edges_set)
+        edges_df = pd.DataFrame(edges_list)
+        
+        # Clean up the dataframe
+        tmp_df = edges_df.rename(columns={0:1,1:0},copy=False)
+        all_edges_df = pd.concat([edges_df,tmp_df])
+        all_edges_df.drop_duplicates( keep='first', inplace=True)
+        all_edges_df.reset_index(drop=True, inplace=True)  
+        
     @classmethod
     def num_opportunity_dists(cls, part, minority_perc, threshold):
         """
