@@ -30,6 +30,7 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05,
     if compactness:
         compactness_bound = constraints.UpperBound(lambda p: len(p["cut_edges"]),
                             2*len(initial_part["cut_edges"]))
+        # Note: WE WILL WANT TO FIX THE BELOW SO THAT THE ELECTION IS NOT HARD CODED
         eg_bound = constraints.Bounds(lambda p: [p["T16SEN"].efficiency_gap()], (-0.08, 0.08))  #brackets turn it into a list so it's iterable
         cs = [constraints.within_percent_of_ideal_population(initial_part, epsilon),
               compactness_bound] #, eg_bound]  #FOR WHEN WE WANT TO ADD THIS!!!
@@ -298,6 +299,58 @@ class Gingleator:
                     max_part = (part, part_score) if part_score <= max_part[1] else max_part
     
         return (max_part, observed_num_ops)
+    
+    
+    """
+    Ellen added the EG run below
+    """
+    
+    def geo_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
+                              verbose=False, maximize=True):
+        """
+        biased_short_burst_run: preforms a biased short burst run using the instance's score function.
+                                Each burst is a biased run markov chain, starting at the best preforming 
+                                plan of the previous burst.  If there's a tie, the later observed 
+                                one is selected.
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            p:          probability of a plan with a worse preforming score (|EG|>0.8) within a burst
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+        """
+        max_part = (self.part, self.score(self.part, self.minority_perc,
+                    self.threshold)) 
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        def biased_acceptance_function(part):
+            if part.parent == None: return True
+            part_score = self.score(part, self.minority_perc, self.threshold)
+            prev_score = self.score(part.parent, self.minority_perc, self.threshold)
+            geo_scores = self.geo(part)
+            #print("eg is", eg_score)
+            if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/55: return True #NOTE: This choice is super arbitrary!!!  
+            # We need to discuss!  Same goes for below!!!
+            elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/5: return True
+            else: return random.random() < p
+
+        for i in range(num_bursts):
+            if verbose: print("Burst:", i)
+            chain = config_markov_chain(max_part[0], iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        accept_func= biased_acceptance_function)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.minority_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+    
+        return (max_part, observed_num_ops)
+
 
     """
     Score Functions
@@ -328,21 +381,140 @@ class Gingleator:
 
         Returns
         -------
-        Geo score for that map
+        Geo score for that map as a list
 
         """
+        
         # First find the set of edges from the partition, put into a dataframe
+        # This first bit comes from our recom code
         edges_set=set()
         for e in part["cut_edges"]:
             edges_set.add( (part.assignment[e[0]],part.assignment[e[1]] ))
         edges_list = list(edges_set)
         edges_df = pd.DataFrame(edges_list)
         
-        # Clean up the dataframe
+        # Clean up the dataframe (comes from GEO code)
         tmp_df = edges_df.rename(columns={0:1,1:0},copy=False)
         all_edges_df = pd.concat([edges_df,tmp_df])
         all_edges_df.drop_duplicates( keep='first', inplace=True)
         all_edges_df.reset_index(drop=True, inplace=True)  
+        
+        # Create Election Dataframe
+        # NOTE: THE STUFF BELOW IS HARD CODED AND SHOULD BE CHANGED TO ACCOUNT FOR SPECIFIC ELECTION
+        
+        D_votes = part["T16SEN"].votes("Democratic")
+        R_votes = part["T16SEN"].votes("Republican")
+        dist_num = [i+1 for i in range(len(D_votes))]
+        election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = dist_num, columns =[1,2])
+        
+        num_parties = len(election_df.columns)            
+        total_votes =  election_df.iloc[:,0:num_parties+1].sum(axis=1)
+
+        vote_share_df = pd.DataFrame(index=election_df.index,columns=election_df.columns)
+        for i in range(1,num_parties+1):                    #range(1,k) loops through 1, 2, . . . ,k-1
+            vote_share_df[i] = election_df[i]/total_votes
+        
+        #Below is from GEO code
+        #Set parameters for GEO metric
+        min_cvs = 0.5 #Vote share losing districts must reach to become competitive
+        max_cvs = 0.55 #Vote share that winning districts cannot drop below
+        
+            
+        #Build lists of neighbors
+        #neighbors[i] will contain list of neighbors of district i
+        districts=election_df.index.tolist()  #Get list of districts from election_df
+        neighbors = dict()  #Initiate empty dictionary of neighbors
+        for district in districts:
+            n_index = all_edges_df[(all_edges_df[0] == district)][1].tolist()   #Get index in all_edges_df of neighbors of i
+            neighbors[district] = n_index  #Add values to neighbors list
+        
+        #List to hold GEO scores
+        geo_scores_list = []
+        
+        #Loop through all parties
+        for party in range(1,num_parties+1):    
+            geo_score = 0
+            newly_competitive = []
+
+            
+            geo_df = pd.DataFrame(index=election_df.index, columns=['Original Vote Share', 'Vote Share','Avg Neighbor Vote Share','Votes to Share','Made Competitive','Total Votes Shared','Is Competitive'])
+            geo_df['Original Vote Share'] = vote_share_df[party]
+            geo_df['Vote Share'] = vote_share_df[party]
+            geo_df['Made Competitive'].values[:] = 0
+            geo_df['Is Competitive'].values[:] = False          
+            geo_df['Total Votes Shared'].values[:] = 0          
+            
+          
+            #Compute Avg Neighbor Vote Share 
+            for district in districts:
+                total_neighborhood_votes = geo_df.loc[neighbors[district],'Vote Share'].sum() + geo_df.at[district,'Vote Share']
+                geo_df.at[district,'Avg Neighbor Vote Share'] = total_neighborhood_votes / (len(neighbors[district])+1)
+                
+            #Use standard deviation of A_i to adjust votes to share, allow possibility of different adjustments for winning and losing districts 
+            stdev = geo_df['Avg Neighbor Vote Share'].std()
+            win_adj = stdev     #A_i - win_adj for winning districts
+            loss_adj = stdev    #A_i - loss_adj for losing districts
+            
+                
+            for district in districts:
+                avg_neigh_vs = geo_df.at[district,'Avg Neighbor Vote Share']
+                if geo_df.at[district,'Vote Share'] > max_cvs:   #Winning district that we potentially allow to share votes
+                    geo_df.at[district,'Votes to Share'] = max(0, geo_df.at[district,'Vote Share'] - max(max_cvs,avg_neigh_vs-win_adj))
+                elif geo_df.at[district,'Vote Share'] >= min_cvs:  #Winning district we do not allow to share votes
+                    geo_df.at[district,'Votes to Share'] = 0
+                    geo_df.at[district,'Is Competitive'] = True            
+                else:                                   #Losing district
+                    geo_df.at[district,'Votes to Share'] = max(0, geo_df.at[district,'Vote Share']-(avg_neigh_vs-loss_adj))
+                
+            #Sort by 'Avg Neighbor Vote Share', then get stable_wins and losses in this order
+            geo_df.sort_values(by='Avg Neighbor Vote Share', axis=0, ascending=False, inplace=True)    
+            stable_win = geo_df.index[(geo_df['Vote Share']>max_cvs)].tolist()
+            loss =  geo_df.index[(geo_df['Vote Share']<min_cvs)].tolist()
+                
+            #All the districts to consider for shifting votes
+            stable_win_loss = stable_win + loss
+            
+            #Run through loss districts to see if can make competitive
+            for j in loss:
+                needs_to_be_competitive = min_cvs - geo_df.at[j,'Vote Share'] 
+                    
+                #Find vote shares that can be transferred in from neighbors
+                shareable_neighbors = list( set.intersection( set(neighbors[j]), set(stable_win_loss)))
+                neighbors_votes_to_share = geo_df.loc[shareable_neighbors,'Votes to Share'].sum()
+                
+                if needs_to_be_competitive <= neighbors_votes_to_share:  #If there's enough vote shares from neighbors to change district to competitive
+                        # Adjust j to be competitive and remove j from stable_win_loss list
+                        geo_df.at[j,'Vote Share'] = min_cvs
+                        geo_df.at[j,'Votes to Share'] = 0          
+                        geo_df.at[j,'Is Competitive'] = True
+                        geo_df.at[j,'Made Competitive'] = True
+                        newly_competitive.append(j)
+                        stable_win_loss.remove(j)
+                        
+                        # Loop through shareable_neighbors, reducing votes to share
+                        #  Reduce by proportion of votes neighbors have to share
+                        sharing_neighbors = []
+                        for k in shareable_neighbors:
+                            if geo_df.at[k, 'Votes to Share'] == 0:    #It didn't end up sharing anything, so we don't want to note it
+                                continue
+                            sharing_neighbors.append(k)
+                            votes_shared = (geo_df.at[k,'Votes to Share']/neighbors_votes_to_share) * needs_to_be_competitive
+                            geo_df.at[k,'Vote Share'] -=  votes_shared
+                            geo_df.at[k,'Votes to Share'] -=  votes_shared 
+                            geo_df.at[k,'Total Votes Shared'] += votes_shared
+                            
+                                
+            
+            #Count number of non-zero values in 'Made Competitive'        
+            geo_score = geo_df['Made Competitive'].astype(bool).sum()
+          
+            #Add to returned list:
+            geo_scores_list.append(geo_score)
+        
+        print(geo_scores_list)
+        return geo_scores_list
+
+        
         
     @classmethod
     def num_opportunity_dists(cls, part, minority_perc, threshold):
