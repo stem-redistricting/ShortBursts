@@ -55,31 +55,50 @@ class Gingleator:
     """
 
     def __init__(self, initial_partition, threshold=0.4, 
-                 score_funct=None, minority_perc_col=None, eg = None,
+                 score_funct=None, target_perc_col=None, eg = None,
                  pop_col="TOTPOP", epsilon=0.05, tot_seats = None):
         self.part = initial_partition
         self.threshold = threshold
         self.score = self.num_opportunity_dists if score_funct == None else score_funct
-        self.minority_perc = minority_perc_col
+        self.target_perc = target_perc_col
         self.pop_col = pop_col
         self.epsilon = epsilon
 
 
 
-    def init_minority_perc_col(self, minority_pop_col, other_pop_col,
-                               minority_perc_col):
+    def init_target_perc_col(self,target_pop_col, other_pop_col,
+                               target_perc_col):
         """
-         init_minority_perc_col takes the string corresponding to the minority
-         population column and the total population column attributes in the 
-         partition updaters as well as the desired name of the minority percent 
+         init_target_perc_col takes the string corresponding to the target
+         population column and the desired name of the target percent 
          column and updates the partition updaters accordingly
+         If the target column corresponds to D or R, target_pop_col + other_pop_col = total
+         Otherwise, other_pop_col = total
         """
-        perc_up = {minority_perc_col:
-                   lambda part: {k: part[minority_pop_col][k] / (part[minority_pop_col][k]+part[other_pop_col][k])
+        last_char = target_pop_col[-1]
+        if last_char == "D" or last_char == "R":
+            perc_up = {target_perc_col:
+                   lambda part: {k: part[target_pop_col][k] / (part[target_pop_col][k]+part[other_pop_col][k])
+                                 for k in part.parts.keys()}}
+        else: 
+            perc_up = {target_perc_col:
+                   lambda part: {k: part[target_pop_col][k] / part[other_pop_col][k]
                                  for k in part.parts.keys()}}
         self.part.updaters.update(perc_up)
     
     def init_total_seats(self, seats):
+        """
+        
+
+        Parameters
+        ----------
+        seats : the number of districts in the state
+
+        Returns
+        -------
+        initializes the number of seats.  This is needed for the eg class method
+
+        """
         self.seats = seats
 
     """
@@ -90,7 +109,7 @@ class Gingleator:
 
     def short_burst_run(self, num_bursts, num_steps, verbose=False,
                         maximize=True, tracking_fun=None): #checkpoint_file=None):
-        max_part = (self.part, self.score(self.part, self.minority_perc,
+        max_part = (self.part, self.score(self.part, self.target_perc,
                     self.threshold)) 
         """
         short_burst_run: preforms a short burst run using the instance's score function.
@@ -112,7 +131,7 @@ class Gingleator:
                                         epsilon=self.epsilon, pop=self.pop_col)
 
             for j, part in enumerate(chain):
-                part_score = self.score(part, self.minority_perc, self.threshold)
+                part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
@@ -139,7 +158,7 @@ class Gingleator:
                                     of each burst
             maximize:       flag - indicates where to prefer plans with higher or lower scores.
         """
-        max_part = (self.part, self.score(self.part, self.minority_perc,
+        max_part = (self.part, self.score(self.part, self.target_perc,
                         self.threshold))
         observed_num_ops = np.zeros(num_iters)
         time_stuck = 0
@@ -151,7 +170,7 @@ class Gingleator:
             chain = config_markov_chain(max_part[0], iters=burst_len,
                                         epsilon=self.epsilon, pop=self.pop_col)
             for j, part in enumerate(chain):
-                part_score = self.score(part, self.minority_perc, self.threshold)
+                part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i] = part_score
 
                 if part_score <= max_part[1]: time_stuck += 1
@@ -181,14 +200,14 @@ class Gingleator:
                                     of each burst
             maximize:   flag - indicates where to prefer plans with higher or lower scores.
         """
-        max_part = (self.part, self.score(self.part, self.minority_p,
+        max_part = (self.part, self.score(self.part, self.target_p,
                     self.threshold))
         observed_num_ops = np.zeros(num_iters)
         
         def biased_acceptance_function(part):
             if part.parent == None: return True
-            part_score = self.score(part, self.minority_perc, self.threshold)
-            prev_score = self.score(part.parent, self.minority_perc, self.threshold)
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
             if maximize and part_score >= prev_score: return True
             elif not maximize and part_score <= prev_score: return True
             else: return random.random() < p
@@ -198,7 +217,7 @@ class Gingleator:
                                     accept_func= biased_acceptance_function)
         for i, part in enumerate(chain):
             if verbose and i % 100 == 0: print("*", end="", flush=True)
-            part_score = self.score(part, self.minority_perc, self.threshold)
+            part_score = self.score(part, self.target_perc, self.threshold)
             observed_num_ops[i] = part_score
             if maximize:
                 max_part = (part, part_score) if part_score >= max_part[1] else max_part
@@ -223,14 +242,14 @@ class Gingleator:
                                each burst
             maximize:   flag - indicates where to prefer plans with higher or lower scores.
         """
-        max_part = (self.part, self.score(self.part, self.minority_perc,
+        max_part = (self.part, self.score(self.part, self.target_perc,
                     self.threshold)) 
         observed_num_ops = np.zeros((num_bursts, num_steps))
 
         def biased_acceptance_function(part):
             if part.parent == None: return True
-            part_score = self.score(part, self.minority_perc, self.threshold)
-            prev_score = self.score(part.parent, self.minority_perc, self.threshold)
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
             if maximize and part_score >= prev_score: return True
             elif not maximize and part_score <= prev_score: return True
             else: return random.random() < p
@@ -242,7 +261,7 @@ class Gingleator:
                                         accept_func= biased_acceptance_function)
 
             for j, part in enumerate(chain):
-                part_score = self.score(part, self.minority_perc, self.threshold)
+                part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
@@ -270,15 +289,15 @@ class Gingleator:
                                each burst
             maximize:   flag - indicates where to prefer plans with higher or lower scores.
         """
-        max_part = (self.part, self.score(self.part, self.minority_perc,
+        max_part = (self.part, self.score(self.part, self.target_perc,
                     self.threshold)) 
         observed_num_ops = np.zeros((num_bursts, num_steps))
 
         def biased_acceptance_function(part):
             if part.parent == None: return True
-            part_score = self.score(part, self.minority_perc, self.threshold)
-            prev_score = self.score(part.parent, self.minority_perc, self.threshold)
-            eg_score = self.eg(part, self.minority_perc, self.seats)
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
+            eg_score = self.eg(part, self.target_perc, self.seats)
             #print("eg is", eg_score)
             if maximize and part_score >= prev_score and eg_score < 0.08 and eg_score > -0.08: return True
             elif not maximize and part_score <= prev_score  and eg_score < 0.08 and eg_score > -0.08: return True
@@ -291,7 +310,7 @@ class Gingleator:
                                         accept_func= biased_acceptance_function)
 
             for j, part in enumerate(chain):
-                part_score = self.score(part, self.minority_perc, self.threshold)
+                part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
@@ -320,14 +339,14 @@ class Gingleator:
                                each burst
             maximize:   flag - indicates where to prefer plans with higher or lower scores.
         """
-        max_part = (self.part, self.score(self.part, self.minority_perc,
+        max_part = (self.part, self.score(self.part, self.target_perc,
                     self.threshold)) 
         observed_num_ops = np.zeros((num_bursts, num_steps))
 
         def biased_acceptance_function(part):
             if part.parent == None: return True
-            part_score = self.score(part, self.minority_perc, self.threshold)
-            prev_score = self.score(part.parent, self.minority_perc, self.threshold)
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
             geo_scores = self.geo(part)
             #print("eg is", eg_score)
             if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/55: return True #NOTE: This choice is super arbitrary!!!  
@@ -342,7 +361,7 @@ class Gingleator:
                                         accept_func= biased_acceptance_function)
 
             for j, part in enumerate(chain):
-                part_score = self.score(part, self.minority_perc, self.threshold)
+                part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
@@ -358,15 +377,15 @@ class Gingleator:
     
     #Ellen added eg score below
     @classmethod
-    def eg(cls, part, minority_perc, seats):
+    def eg(cls, part, target_perc, seats):
         """
-        eg: given a partition, name of the minority percent updater, and the number of seats
+        eg: given a partition, name of the target percent updater, and the number of seats
                                 that party won, return the Efficiency Gap (defined using only
                                 seat share and vote share)
         """
 
-        V = mean(part[minority_perc].values())
-        S = cls.num_opportunity_dists(part, minority_perc, 0.5)/seats
+        V = mean(part[target_perc].values())
+        S = cls.num_opportunity_dists(part, target_perc, 0.5)/seats
         print("V is ", V, "S is", S, "eg is ", S-2*V+1/2)
         return S-2*V+1/2
     
@@ -517,38 +536,38 @@ class Gingleator:
         
         
     @classmethod
-    def num_opportunity_dists(cls, part, minority_perc, threshold):
+    def num_opportunity_dists(cls, part, target_perc, threshold):
         """
-        num_opportunity_dists: given a partition, name of the minority percent updater, and a
+        num_opportunity_dists: given a partition, name of the target percent updater, and a
                                threshold, returns the number of opportunity districts.
         """
-        dist_percs = part[minority_perc].values()
+        dist_percs = part[target_perc].values()
         return sum(list(map(lambda v: v >= threshold, dist_percs)))
 
 
     @classmethod
-    def reward_partial_dist(cls, part, minority_perc, threshold):
+    def reward_partial_dist(cls, part, target_perc, threshold):
         """
-        reward_partial_dist: given a partition, name of the minority percent updater, and a
+        reward_partial_dist: given a partition, name of the target percent updater, and a
                              threshold, returns the number of opportunity districts + the 
                              percentage of the next highest district.
         """
-        dist_percs = part[minority_perc].values()
+        dist_percs = part[target_perc].values()
         num_opport_dists = sum(list(map(lambda v: v >= threshold, dist_percs)))
         next_dist = max(i for i in dist_percs if i < threshold)
         return num_opport_dists + next_dist
 
 
     @classmethod
-    def reward_next_highest_close(cls, part, minority_perc, threshold):
+    def reward_next_highest_close(cls, part, target_perc, threshold):
         """
-        reward_next_highest_close: given a partition, name of the minority percent updater, and a
+        reward_next_highest_close: given a partition, name of the target percent updater, and a
                                    threshold, returns the number of opportunity districts, if no 
                                    additional district is within 10% of reaching the threshold.  If one is, 
                                    the distance that district is from the threshold is scaled between 0 
                                    and 1 and added to the count of opportunity districts.
         """
-        dist_precs = part[minority_perc].values()
+        dist_precs = part[target_perc].values()
         num_opport_dists = sum(list(map(lambda v: v >= threshold, dist_precs)))
         next_dist = max(i for i in dist_precs if i < threshold)
 
@@ -559,13 +578,13 @@ class Gingleator:
 
 
     @classmethod
-    def penalize_maximum_over(cls, part, minority_perc, threshold):
+    def penalize_maximum_over(cls, part, target_perc, threshold):
         """
-        penalize_maximum_over: given a partition, name of the minority percent updater, and a
+        penalize_maximum_over: given a partition, name of the target percent updater, and a
                                threshold, returns the number of opportunity districts + 
                                (1 - the maximum excess) scaled to between 0 and 1.
         """
-        dist_precs = part[minority_perc].values()
+        dist_precs = part[target_perc].values()
         num_opportunity_dists = sum(list(map(lambda v: v >= threshold, dist_precs)))
         if num_opportunity_dists == 0:
             return 0
@@ -575,13 +594,13 @@ class Gingleator:
 
 
     @classmethod
-    def penalize_avg_over(cls, part, minority_perc, threshold):
+    def penalize_avg_over(cls, part, target_perc, threshold):
         """
-        penalize_maximum_over: given a partition, name of the minority percent updater, and a
+        penalize_maximum_over: given a partition, name of the target percent updater, and a
                                threshold, returns the number of opportunity districts + 
                                (1 - the average excess) scaled to between 0 and 1.
         """
-        dist_precs = part[minority_perc].values()
+        dist_precs = part[target_perc].values()
         opport_dists = list(filter(lambda v: v >= threshold, dist_precs))
         if opport_dists == []:
             return 0

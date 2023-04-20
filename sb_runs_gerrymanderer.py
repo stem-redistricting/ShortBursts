@@ -61,14 +61,13 @@ POP_COL = "TOTPOP"
 N_SAMPS = 1
 SCORE_FUNCT = None #score_functs[args.score]
 EPS = 0.045
-MIN_POP_COL = args.col
+TARGET_POP_COL = args.col
 
 
 ## Setup graph, updaters, elections, and initial partition
 
 print("Reading in Data/Graph", flush=True)
 
-#graph = Graph.from_json("PA.json")
 graph = Graph.from_json("PA.json")
 
 #NEW STUFF BELOW
@@ -105,12 +104,6 @@ total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
 seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "02"}
 
-#with open("PA.json", "r") as f:
-#    cddict = json.load(f)
-
-#cddict = {int(k):v for k,v in cddict.items()}
-
-#init_partition = Partition(graph, assignment=cddict, updaters=my_updaters)
 init_partition = GeographicPartition(graph, 
                                         assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
@@ -118,14 +111,22 @@ init_partition = GeographicPartition(graph,
 
 gingles = Gingleator(init_partition, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
-                     minority_perc_col="{}_perc".format(MIN_POP_COL))
+                     target_perc_col="{}_perc".format(TARGET_POP_COL))
 
 """
-Ellen's comment: Note that I edited below.  This is because VAP isn't what we want to divide by!
-Probably we should fix this up a bit later.
+The if/elseif commands below make sure that if we want to maximize D votes, we devide by D+R votes (same for R)
+If we want to maximize minority votes, we divide by VAP
 """
-gingles.init_minority_perc_col(MIN_POP_COL, "T16SENR", 
-                               "{}_perc".format(MIN_POP_COL))
+last_char = TARGET_POP_COL[-1]
+if last_char == "D":
+    denominator_col = TARGET_POP_COL[:-1] + "R"
+elif last_char == "R":
+    denominator_col = TARGET_POP_COL[:-1] + "D"
+else:
+    denominator_col = "VAP"
+    
+gingles.init_target_perc_col(TARGET_POP_COL, denominator_col, 
+                               "{}_perc".format(TARGET_POP_COL))
 
 #BELOW IS NEW SO WE CAN GET TOTAL SEATS
 gingles.init_total_seats(num_h_districts[args.state])
@@ -134,7 +135,7 @@ num_bursts = int(ITERS/BURST_LEN)
 
 print("Starting Short Bursts Runs", flush=True)
 
-#NOTE WE"RE TRYING OUT AN EG BASED RUN BELOW!!!!!
+#NOTE WE"RE TRYING OUT AN EG BIASED RUN BELOW!!!!!
 for n in range(N_SAMPS):
     sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
@@ -143,12 +144,12 @@ for n in range(N_SAMPS):
     print("\tSaving results", flush=True)
 
     f_out = "data/states/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}.npy".format(args.state,
-                                                        NUM_DISTRICTS, MIN_POP_COL, EPS, 
+                                                        NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, n)
     np.save(f_out, sb_obs[1])
 
     f_out_part = "data/states/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_max_part.p".format(args.state,
-                                                        NUM_DISTRICTS, MIN_POP_COL, EPS, 
+                                                        NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, n)
 
     max_stats = {"VAP": sb_obs[0][0]["VAP"],
