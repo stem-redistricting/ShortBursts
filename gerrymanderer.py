@@ -160,8 +160,8 @@ def geo(part):
 
 
 
-def config_markov_chain(initial_part, iters=1000, epsilon=0.05, 
-                        compactness=True, eg_constraint = False, pop="TOT_POP", accept_func=None):
+def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True, 
+                        geo_constraint = True, eg_constraint = False, pop="TOT_POP", accept_func=None):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
     proposal = partial(recom,
@@ -182,6 +182,12 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05,
         # Note: WE WILL WANT TO FIX THE BELOW SO THAT THE ELECTION IS NOT HARD CODED
         eg_bound = constraints.Bounds(lambda p: [p["T16SEN"].efficiency_gap()], (-0.08, 0.08))  #brackets turn it into a list so it's iterable
         cs.append(eg_bound)
+    
+    #NOTE: Right now this checks that the difference in geo scores is between -8 and 8!
+    #Surely this should eventually change
+    if geo_constraint:
+        geo_bound = constraints.Bounds(lambda p: [geo(p)[0] - geo(p)[1]], (-8, 8))
+        cs.append(geo_bound)
 
     if accept_func == None: accept_func = accept.always_accept
     is_valid = constraints.Validator(cs)  #added
