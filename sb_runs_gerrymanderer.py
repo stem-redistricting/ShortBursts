@@ -137,7 +137,7 @@ print("Starting Short Bursts Runs", flush=True)
 
 #NOTE WE"RE TRYING OUT AN EG BIASED RUN BELOW!!!!!
 for n in range(N_SAMPS):
-    sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+    sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
     print("\tFinished chain {}".format(n), flush=True)
 
