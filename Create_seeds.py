@@ -190,6 +190,7 @@ print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
 
 outdir="./PA_seed/"
+file_prefix = "PA"
 
 total_steps_in_run=500
 save_district_graph_mod=1
@@ -269,6 +270,13 @@ for t, part in enumerate(chain):
     if geo_score <=2 and eg_score <= 0.08 and mm_score <=0.08:
         print("found it!")
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
+        (part.graph).to_json("./PA_seed/PAseed.json")
+        df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8))
+        #plt.show()
+        plot_output_file = outdir + file_prefix + "seed_plot.png"
+        plt.savefig(plot_output_file)
+        plt.close()
+        break
     else:
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
 
