@@ -9,7 +9,7 @@ Created on Fri May 12 14:25:02 2023
 import pandas as pd
 
 """
-GEO metric below.  Right now the election is hard coded.  Should change later.
+GEO metric below.
 """
 
 def geo(part, election):
@@ -18,6 +18,7 @@ def geo(part, election):
     Parameters
     ----------
     part : the partition
+    election : the string giving election name, which is in updaters
 
     Returns
     -------

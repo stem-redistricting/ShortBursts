@@ -31,6 +31,7 @@ import csv
 import os
 import datetime  #For keeping track of runtime
 import pandas as pd
+import json
 
 
 
@@ -129,9 +130,20 @@ for t, part in enumerate(chain):
     if geo_score <=2 and eg_score <= 0.08 and mm_score <=0.08:
         print("found it!")
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
-        (part.graph).to_json("./PA_seed/PAseed.json") # export graph to json file
+        
+        # export graph of this partition to json file
+        (part.graph).to_json(outdir + file_prefix + "seed.json")
+        
+        # Create the assignment for this partition
+        seed_dict = dict()
+        seed_nodes = list(part.graph.nodes)
+        for node in seed_nodes:
+            seed_dict[node] = part.assignment[node]
+        with open("./PA_seed/PAassignment.json", "w") as outfile:
+            json.dump(seed_dict, outfile)
+        
+        #Create plot of this partition and export
         df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8)) 
-        #plt.show()
         plot_output_file = outdir + file_prefix + "seed_plot.png" # export plot
         plt.savefig(plot_output_file)
         plt.close()

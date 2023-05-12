@@ -80,6 +80,7 @@ elections = [
 ]
 #NEW STUFF ABOVE
 
+#Note: The stuff above and below is redundant right now and should be fixed/condensed at some point
 my_updaters = {"population" : Tally(POP_COL, alias="population"),
                "VAP": Tally("VAP"),
                "BVAP": Tally("BVAP"),
@@ -100,6 +101,10 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
 
 print("Creating seed plan", flush=True)
 
+election_name = "T16SEN"
+
+print("using T16SEN election")
+
 total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
 seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "02"}
@@ -111,7 +116,7 @@ init_partition = GeographicPartition(graph,
 
 gingles = Gingleator(init_partition, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
-                     target_perc_col="{}_perc".format(TARGET_POP_COL))
+                     target_perc_col="{}_perc".format(TARGET_POP_COL), election_name = election_name)
 
 """
 The if/elseif commands below make sure that if we want to maximize D votes, we devide by D+R votes (same for R)
@@ -137,7 +142,7 @@ print("Starting Short Bursts Runs", flush=True)
 
 #NOTE WE"RE TRYING OUT AN EG BIASED RUN BELOW!!!!!
 for n in range(N_SAMPS):
-    sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+    sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
     print("\tFinished chain {}".format(n), flush=True)
 
