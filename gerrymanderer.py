@@ -332,7 +332,7 @@ class Gingleator:
     
     
     """
-    Ellen added the EG run below
+    Ellen added the GEO run below
     """
     
     def geo_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
