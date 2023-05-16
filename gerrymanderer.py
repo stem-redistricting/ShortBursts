@@ -19,7 +19,7 @@ from helpers import geo
 
 
 def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True, 
-                        geo_constraint = False, eg_constraint = False, pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
+                        geo_constraint = True, eg_constraint = False, pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
     proposal = partial(recom,
@@ -45,7 +45,7 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True
     #NOTE: Right now the GEO code is written so that the election is hard coded.  We'll want to change this later.
     #Surely this should eventually change
     if geo_constraint:
-        geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-8, 8))
+        geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
         cs.append(geo_bound)
 
     if accept_func == None: accept_func = accept.always_accept
@@ -359,7 +359,7 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             geo_scores = geo(part, self.election_name)
-            #print("eg is", eg_score)
+            print("geo is", geo_scores)
             if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/5: return True #NOTE: This choice is super arbitrary!!!  
             # We need to discuss!  Same goes for below!!!
             elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/5: return True

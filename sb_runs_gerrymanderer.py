@@ -58,7 +58,7 @@ BURST_LEN = args.l
 NUM_DISTRICTS = num_h_districts[args.state]
 ITERS = args.iters
 POP_COL = "TOTPOP"
-N_SAMPS = 1
+N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
 EPS = 0.045
 TARGET_POP_COL = args.col
@@ -68,7 +68,8 @@ TARGET_POP_COL = args.col
 
 print("Reading in Data/Graph", flush=True)
 
-graph = Graph.from_json("PA.json")
+graphname = "./{}_seed/{}seed.json".format(args.state, args.state)
+graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
 elections = [
@@ -109,10 +110,21 @@ total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
 seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "02"}
 
+
+##Below is from sb_runs
+with open("./{}_seed/{}assignment.json".format(args.state, args.state), "r") as f:
+    cddict = json.load(f)
+
+cddict = {int(k):v for k,v in cddict.items()}
+
+init_partition = Partition(graph, assignment=cddict, updaters=my_updaters)
+## Above is from sb_runs
+
+"""  Only use this when starting from gerrymandered map
 init_partition = GeographicPartition(graph, 
                                         assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
-
+"""
 
 gingles = Gingleator(init_partition, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
@@ -148,12 +160,12 @@ for n in range(N_SAMPS):
 
     print("\tSaving results", flush=True)
 
-    f_out = "data/states/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}.npy".format(args.state,
+    f_out = "data/states/GEO/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}.npy".format(args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, n)
     np.save(f_out, sb_obs[1])
 
-    f_out_part = "data/states/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_max_part.p".format(args.state,
+    f_out_part = "data/states/GEO/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_max_part.p".format(args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, n)
 
