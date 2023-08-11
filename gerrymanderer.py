@@ -14,7 +14,7 @@ from functools import (partial, reduce)
 import numpy as np
 import pandas as pd
 import random
-from statistics import mean
+from statistics import (mean, median)
 from helpers import geo
 
 
@@ -308,7 +308,7 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             eg_score = self.eg(part, self.target_perc, self.seats)
-            #print("eg is", eg_score)
+            print("eg is", eg_score)
             if maximize and part_score >= prev_score and eg_score < 0.08 and eg_score > -0.08: return True
             elif not maximize and part_score <= prev_score  and eg_score < 0.08 and eg_score > -0.08: return True
             else: return random.random() < p
@@ -379,6 +379,56 @@ class Gingleator:
                     max_part = (part, part_score) if part_score <= max_part[1] else max_part
     
         return (max_part, observed_num_ops)
+    
+    """
+    Ellen added the Mean-Median run below
+    """
+    
+    def mm_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
+                              verbose=False, maximize=True):
+        """
+        biased_short_burst_run: preforms a biased short burst run using the instance's score function.
+                                Each burst is a biased run markov chain, starting at the best preforming 
+                                plan of the previous burst.  If there's a tie, the later observed 
+                                one is selected.
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            p:          probability of a plan with a worse preforming score (|EG|>0.8) within a burst
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+        """
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        def biased_acceptance_function(part):
+            if part.parent == None: return True
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
+            mm_score = self.mm(part, self.target_perc, self.seats)
+            print("mean-median is", mm_score)
+            if maximize and part_score >= prev_score and mm_score < 0.08 and mm_score > -0.08: return True #Again, we may want to change these bounds
+            elif not maximize and part_score <= prev_score  and mm_score < 0.08 and mm_score > -0.08: return True
+            else: return random.random() < p
+
+        for i in range(num_bursts):
+            if verbose: print("Burst:", i)
+            chain = config_markov_chain(max_part[0], iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        accept_func= biased_acceptance_function)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+    
+        return (max_part, observed_num_ops)
+
 
 
     """
@@ -398,6 +448,19 @@ class Gingleator:
         S = cls.num_opportunity_dists(part, target_perc, 0.5)/seats
         print("V is ", V, "S is", S, "eg is ", S-2*V+1/2)
         return S-2*V+1/2
+    
+    #Ellen added mm score below
+    @classmethod
+    def mm(cls, part, target_perc, seats):
+        """
+        mm: given a partition, name of the target percent updater, and the number of seats
+                                that party won, return the mean-median difference
+        """
+
+        mean_value = mean(part[target_perc].values())
+        median_value = median(part[target_perc].values())
+        print("mean-median is ", median_value - mean_value)
+        return median_value - mean_value
     
         
         
