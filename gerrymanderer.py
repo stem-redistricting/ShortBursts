@@ -19,7 +19,8 @@ from helpers import geo
 
 
 def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True, 
-                        geo_constraint = True, eg_constraint = False, pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
+                        geo_constraint = False, eg_constraint = False, mm_constraint = False, 
+                        pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
     proposal = partial(recom,
@@ -39,8 +40,12 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True
     if eg_constraint:
         eg_bound = constraints.Bounds(lambda p: [p[election_name].efficiency_gap()], (-0.08, 0.08))  #brackets turn it into a list so it's iterable
         cs.append(eg_bound)
+        
+    if mm_constraint:
+        mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.08, 0.08))
+        cs.append(mm_bound)
     
-    #NOTE: Right now this checks that the difference in geo scores is between -8 and 8!
+    #NOTE: Right now this checks that the difference in geo scores is between -2 and 2!
     #NOTE: Right now the GEO code is written so that the election is hard coded.  We'll want to change this later.
     #Surely this should eventually change
     if geo_constraint:
@@ -281,7 +286,132 @@ class Gingleator:
         return (max_part, observed_num_ops)
     
     """
-    Ellen added the EG run below
+    Ellen added EG run below
+    """
+    
+    def eg_short_burst_run(self, num_bursts, num_steps, verbose=False,
+                        maximize=True, tracking_fun=None): #checkpoint_file=None):
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        """
+        short_burst_run: preforms a short burst run using the instance's score function.
+                         Each burst starts at the best preforming plan of the previous
+                         burst.  If there's a tie, the later observed one is selected.
+                         This eg run ensures that -0.08 < eg < 0.08
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+            tracking_fun: Function to save information about each observed plan.
+        """
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        for i in range(num_bursts):
+            if verbose: print("*", end="", flush=True)
+            chain = config_markov_chain(max_part[0], iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        eg_constraint = True)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+
+                if tracking_fun != None: tracking_fun(part, i, j)
+
+        return (max_part, observed_num_ops)
+    
+    """
+    Ellen added GEO run below
+    """
+    
+    def geo_short_burst_run(self, num_bursts, num_steps, verbose=False,
+                        maximize=True, tracking_fun=None): #checkpoint_file=None):
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        """
+        short_burst_run: preforms a short burst run using the instance's score function.
+                         Each burst starts at the best preforming plan of the previous
+                         burst.  If there's a tie, the later observed one is selected.
+                         This geo run ensures that difference in geo scores is according to geo_constraint above
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+            tracking_fun: Function to save information about each observed plan.
+        """
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        for i in range(num_bursts):
+            if verbose: print("*", end="", flush=True)
+            chain = config_markov_chain(max_part[0], iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        geo_constraint = True)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+
+                if tracking_fun != None: tracking_fun(part, i, j)
+
+        return (max_part, observed_num_ops)
+    
+        
+    """
+    Ellen added Mean-Median run below
+    """
+    
+    def mm_short_burst_run(self, num_bursts, num_steps, verbose=False,
+                        maximize=True, tracking_fun=None): #checkpoint_file=None):
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        """
+        short_burst_run: preforms a short burst run using the instance's score function.
+                         Each burst starts at the best preforming plan of the previous
+                         burst.  If there's a tie, the later observed one is selected.
+                         This mm run ensures that -0.08 < mean-median < 0.08
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+            tracking_fun: Function to save information about each observed plan.
+        """
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        for i in range(num_bursts):
+            if verbose: print("*", end="", flush=True)
+            chain = config_markov_chain(max_part[0], iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        mm_constraint = True)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+
+                if tracking_fun != None: tracking_fun(part, i, j)
+
+        return (max_part, observed_num_ops)
+
+    
+    """
+    Ellen added the EG biased run below
     """
     
     def eg_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
@@ -331,7 +461,7 @@ class Gingleator:
     
     
     """
-    Ellen added the GEO run below
+    Ellen added the GEO biased run below
     """
     
     def geo_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
@@ -359,9 +489,9 @@ class Gingleator:
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             geo_scores = geo(part, self.election_name)
             print("geo is", geo_scores)
-            if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/5: return True #NOTE: This choice is super arbitrary!!!  
+            if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True #NOTE: This choice is super arbitrary!!!  
             # We need to discuss!  Same goes for below!!!
-            elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 1/5: return True
+            elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True
             else: return random.random() < p
 
         for i in range(num_bursts):
@@ -381,7 +511,7 @@ class Gingleator:
         return (max_part, observed_num_ops)
     
     """
-    Ellen added the Mean-Median run below
+    Ellen added the Mean-Median biased run below
     """
     
     def mm_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 

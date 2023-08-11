@@ -47,9 +47,12 @@ parser.add_argument("score", metavar="score_function", type=int,
 args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
-#BIAS = "geo"
-#BIAS = "eg"
-BIAS = "mm"
+#METRIC = "geo"
+METRIC = "eg"
+#METRIC = "mm"
+BIAS = False
+
+
 
 num_h_districts = {"VA": 100, "TX": 150, "AR": 100, "CO": 65, "LA": 105, "NM": 70, "PA": 18}
 
@@ -157,19 +160,31 @@ num_bursts = int(ITERS/BURST_LEN)
 
 print("Starting Short Bursts Runs", flush=True)
 
-#NOTE BELOW IS WHAT CHANGES THE BIAS IN OUR RUN!!
+#NOTE: BELOW IS WHAT CHANGES THE METRIC IN OUR RUN!  Also if BIAS = true, it's a biased run.  Otherwise the metric is *required* to be within particular bounds
 for n in range(N_SAMPS):
-    print("Bias chosen is ", BIAS)
-    #If, elif below accounts for changing bias
-    if BIAS == "geo":
-        sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+    print("Metric chosen is ", METRIC)
+    #If, elif below accounts for changing metric/bias
+    if METRIC == "geo":
+        if BIAS:
+            sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
-    elif BIAS == "eg":
-        sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+        else: 
+            sb_obs = gingles.geo_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
-    elif BIAS == "mm":
-        sb_obs = gingles.mm_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
-                                         maximize=True, verbose=False)
+    elif METRIC == "eg":
+        if BIAS:
+            sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                     maximize=True, verbose=False)
+        else:
+            sb_obs = gingles.eg_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                     maximize=True, verbose=False)
+    elif METRIC == "mm":
+        if BIAS:
+            sb_obs = gingles.mm_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                             maximize=True, verbose=False)
+        else:
+            sb_obs = gingles.mm_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                             maximize=True, verbose=False)
     else:
         print("you entered something incorrectly!  Doing a geo biased run")
         sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
@@ -178,14 +193,14 @@ for n in range(N_SAMPS):
 
     print("\tSaving results", flush=True)
 
-    f_out = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_{}.npy".format(BIAS.capitalize(), args.state,
+    f_out = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(METRIC.capitalize(), args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
-                                                        ITERS, BURST_LEN, args.score, BIAS, n)
+                                                        ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
     np.save(f_out, sb_obs[1])
 
-    f_out_part = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_{}_max_part.p".format(BIAS.capitalize(), args.state,
+    f_out_part = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}_max_part.p".format(METRIC.capitalize(), args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
-                                                        ITERS, BURST_LEN, args.score, BIAS, n)
+                                                        ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
 
     max_stats = {"VAP": sb_obs[0][0]["VAP"],
                  "BVAP": sb_obs[0][0]["BVAP"],
