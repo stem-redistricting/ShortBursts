@@ -159,20 +159,21 @@ print("Starting Short Bursts Runs", flush=True)
 
 #NOTE BELOW IS WHAT CHANGES THE BIAS IN OUR RUN!!
 for n in range(N_SAMPS):
+    run_type = BIAS + "_biased_short_burst_run"
     sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
     print("\tFinished chain {}".format(n), flush=True)
 
     print("\tSaving results", flush=True)
 
-    f_out = "data/states/GEO/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}.npy".format(args.state,
+    f_out = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_{}.npy".format(BIAS.capitalize(), args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
-                                                        ITERS, BURST_LEN, args.score, n)
+                                                        ITERS, BURST_LEN, args.score, BIAS, n)
     np.save(f_out, sb_obs[1])
 
-    f_out_part = "data/states/GEO/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_max_part.p".format(args.state,
+    f_out_part = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_{}_max_part.p".format(BIAS.capitalize(), args.state,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
-                                                        ITERS, BURST_LEN, args.score, n)
+                                                        ITERS, BURST_LEN, args.score, BIAS, n)
 
     max_stats = {"VAP": sb_obs[0][0]["VAP"],
                  "BVAP": sb_obs[0][0]["BVAP"],
