@@ -41,7 +41,6 @@ def geo(part, election):
     all_edges_df.reset_index(drop=True, inplace=True)  
     
     # Create Election Dataframe
-    # NOTE: THE STUFF BELOW IS HARD CODED AND SHOULD BE CHANGED TO ACCOUNT FOR SPECIFIC ELECTION
     
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")

@@ -46,6 +46,11 @@ parser.add_argument("score", metavar="score_function", type=int,
                     choices=[0,1,2,3,4])
 args = parser.parse_args()
 
+#String below tells whether we want to restrict GEO, EG, or mean-median
+BIAS = "geo"
+#BIAS = "eg"
+#BIAS = "mm"
+
 num_h_districts = {"VA": 100, "TX": 150, "AR": 100, "CO": 65, "LA": 105, "NM": 70, "PA": 18}
 
 
@@ -152,7 +157,7 @@ num_bursts = int(ITERS/BURST_LEN)
 
 print("Starting Short Bursts Runs", flush=True)
 
-#NOTE WE"RE TRYING OUT AN EG BIASED RUN BELOW!!!!!
+#NOTE BELOW IS WHAT CHANGES THE BIAS IN OUR RUN!!
 for n in range(N_SAMPS):
     sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)

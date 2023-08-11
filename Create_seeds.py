@@ -4,7 +4,7 @@ Thursday Feb 25, 2021
 
 Using the ReCom proposal following https://gerrychain.readthedocs.io/en/latest/user/recom.html
 
-Authors: Tommy Ratliff, Ellen Veomett
+Authors: Tommy Ratliff, Ellen Veomett.  Edited by Ellen Veomett for the purpose of creating seed plans.
 
 For reproducability of chain:
     
@@ -36,10 +36,9 @@ import json
 
 
 """
--------------- Only 4 parameters that should need changing -----------------
+-------------- parameters that should need changing -----------------
+outdir, file_prefix, election_name, graph, elections, assignment (in initial_partition)
 Can also update initial districting plan by changing 'assignment=' in the initial_partition
-
-Make sure to update election results to be written into districts files
 
 """
 
@@ -80,6 +79,8 @@ initial_partition = GeographicPartition(graph,
                                         assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
+df=gpd.read_file("./PA.shp")
+
 # The ReCom proposal needs to know the ideal population for the districts so that
 # we can improve speed by bailing early on unbalanced partitions.
 
@@ -101,9 +102,6 @@ compactness_bound = constraints.UpperBound(
 
 pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.02)
 
-
-
-
 chain = MarkovChain(
     proposal=proposal,
     constraints=[
@@ -114,20 +112,13 @@ chain = MarkovChain(
     initial_state=initial_partition,
     total_steps=total_steps_in_run
     )
-
-
-
-
-df=gpd.read_file("./PA.shp")
-
-
-    
+  
 #Run through chain, building 
 for t, part in enumerate(chain):
     geo_score = abs(geo(part, election_name)[0]-geo(part, election_name)[1])  # difference in geo scores
     eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
     mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    if geo_score <=2 and eg_score <= 0.08 and mm_score <=0.08:
+    if geo_score <=2 and eg_score <= 0.08 and mm_score <=0.08: #We may want to change these values!!
         print("found it!")
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
         
@@ -150,8 +141,6 @@ for t, part in enumerate(chain):
         break
     else:
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
-
-            
 
 endrun = datetime.datetime.now()
 print ("\nEnd date and time : ", endrun.strftime("%Y-%m-%d %H:%M:%S"))

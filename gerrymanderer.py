@@ -37,7 +37,6 @@ def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True
         cs = [constraints.within_percent_of_ideal_population(initial_part, epsilon)]
         
     if eg_constraint:
-        # Note: WE WILL WANT TO FIX THE BELOW SO THAT THE ELECTION IS NOT HARD CODED
         eg_bound = constraints.Bounds(lambda p: [p[election_name].efficiency_gap()], (-0.08, 0.08))  #brackets turn it into a list so it's iterable
         cs.append(eg_bound)
     
