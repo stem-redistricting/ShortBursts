@@ -159,8 +159,17 @@ print("Starting Short Bursts Runs", flush=True)
 
 #NOTE BELOW IS WHAT CHANGES THE BIAS IN OUR RUN!!
 for n in range(N_SAMPS):
-    run_type = BIAS + "_biased_short_burst_run"
-    sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+    print("Bias chosen is + ", BIAS)
+    #If, elif below accounts for changing bias
+    if BIAS == "geo":
+        sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                     maximize=True, verbose=False)
+    elif BIAS == "eg":
+        sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                     maximize=True, verbose=False)
+    else:
+        print("you entered something incorrectly!  Doing a geo biased run")
+        sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
     print("\tFinished chain {}".format(n), flush=True)
 
