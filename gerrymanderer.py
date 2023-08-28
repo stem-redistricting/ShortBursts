@@ -18,7 +18,7 @@ from statistics import (mean, median)
 from helpers import geo
 
 
-def config_markov_chain(initial_part, iters=1000, epsilon=0.05, compactness=True, 
+def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, compactness=True, 
                         geo_constraint = False, eg_constraint = False, mm_constraint = False, 
                         pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
@@ -130,7 +130,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col)
 
             for j, part in enumerate(chain):
@@ -170,7 +170,7 @@ class Gingleator:
 
         while(i < num_iters):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], iters=burst_len,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=burst_len,
                                         epsilon=self.epsilon, pop=self.pop_col)
             for j, part in enumerate(chain):
                 part_score = self.score(part, self.target_perc, self.threshold)
@@ -215,7 +215,7 @@ class Gingleator:
             elif not maximize and part_score <= prev_score: return True
             else: return random.random() < p
 
-        chain = config_markov_chain(self.part, iters=num_iters,
+        chain = config_markov_chain(self.part, num_districts = self.seats, iters=num_iters,
                                     epsilon=self.epsilon, pop=self.pop_col,
                                     accept_func= biased_acceptance_function)
         for i, part in enumerate(chain):
@@ -259,7 +259,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("Burst:", i)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         accept_func= biased_acceptance_function)
 
@@ -298,7 +298,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         eg_constraint = True)
 
@@ -339,7 +339,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         geo_constraint = True)
 
@@ -381,7 +381,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         mm_constraint = True)
 
@@ -433,7 +433,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("Burst:", i)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         accept_func= biased_acceptance_function)
 
@@ -484,7 +484,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("Burst:", i)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         accept_func= biased_acceptance_function)
 
@@ -533,7 +533,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("Burst:", i)
-            chain = config_markov_chain(max_part[0], iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         accept_func= biased_acceptance_function)
 

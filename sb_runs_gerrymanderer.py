@@ -47,8 +47,9 @@ parser.add_argument("score", metavar="score_function", type=int,
 args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
-METRIC = "geo"
-#METRIC = "eg"
+#Probably these should eventually be arguments, as above
+#METRIC = "geo"
+METRIC = "eg"
 #METRIC = "mm"
 BIAS = False
 
