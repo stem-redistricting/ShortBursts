@@ -3,7 +3,7 @@
 """
 Created on Wed Mar 29 16:39:49 2023
 
-@author: erv2 and all authors of https://github.com/vrdi/shortbursts-gingles/blob/main/state_experiments/gingleator.py
+@author: Ellen Veomett and all authors of https://github.com/vrdi/shortbursts-gingles/blob/main/state_experiments/gingleator.py
 """
 
 from gerrychain import (GeographicPartition, Partition, Graph, MarkovChain,
@@ -68,10 +68,11 @@ class Gingleator:
     of gingles districts.
     """
 
-    def __init__(self, initial_partition, threshold=0.4, 
+    def __init__(self, initial_partition, num_districts, threshold=0.4, 
                  score_funct=None, target_perc_col=None, eg = None,
                  pop_col="TOTPOP", epsilon=0.05, tot_seats = None, election_name = "T15SEN"):
         self.part = initial_partition
+        self.seats = num_districts
         self.threshold = threshold
         self.score = self.num_opportunity_dists if score_funct == None else score_funct
         self.target_perc = target_perc_col
@@ -101,20 +102,7 @@ class Gingleator:
                                  for k in part.parts.keys()}}
         self.part.updaters.update(perc_up)
     
-    def init_total_seats(self, seats):
-        """
-        
 
-        Parameters
-        ----------
-        seats : the number of districts in the state
-
-        Returns
-        -------
-        initializes the number of seats.  This is needed for the eg class method
-
-        """
-        self.seats = seats
 
     """
     Types of Markov Chains:

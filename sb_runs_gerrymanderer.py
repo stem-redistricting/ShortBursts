@@ -3,7 +3,7 @@
 """
 Created on Wed Mar 29 16:29:27 2023
 
-@author: erv2, and all authors of https://github.com/vrdi/shortbursts-gingles/blob/main/state_experiments/sb_runs.py
+@author: Ellen Veomett, and all authors of https://github.com/vrdi/shortbursts-gingles/blob/main/state_experiments/sb_runs.py
 """
 
 import argparse
@@ -47,8 +47,8 @@ parser.add_argument("score", metavar="score_function", type=int,
 args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
-#METRIC = "geo"
-METRIC = "eg"
+METRIC = "geo"
+#METRIC = "eg"
 #METRIC = "mm"
 BIAS = False
 
@@ -134,7 +134,7 @@ init_partition = GeographicPartition(graph,
                                         updaters=my_updaters)
 """
 
-gingles = Gingleator(init_partition, pop_col=POP_COL,
+gingles = Gingleator(init_partition, num_districts = NUM_DISTRICTS, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
                      target_perc_col="{}_perc".format(TARGET_POP_COL), election_name = election_name)
 
@@ -152,9 +152,6 @@ else:
     
 gingles.init_target_perc_col(TARGET_POP_COL, denominator_col, 
                                "{}_perc".format(TARGET_POP_COL))
-
-#BELOW IS NEW SO WE CAN GET TOTAL SEATS
-gingles.init_total_seats(num_h_districts[args.state])
 
 num_bursts = int(ITERS/BURST_LEN)
 
