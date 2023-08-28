@@ -48,8 +48,8 @@ args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
 #Probably these should eventually be arguments, as above
-#METRIC = "geo"
-METRIC = "eg"
+METRIC = "geo"
+#METRIC = "eg"
 #METRIC = "mm"
 BIAS = False
 

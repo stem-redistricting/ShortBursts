@@ -48,8 +48,10 @@ def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, c
     #NOTE: Right now this checks that the difference in geo scores is between -2 and 2!
     #NOTE: Right now the GEO code is written so that the election is hard coded.  We'll want to change this later.
     #Surely this should eventually change
+    #NOTE: If we want to, we could make the geo/num_dists be in between -0.08 and 0.08 now (b/c seats is in the config)
     if geo_constraint:
         geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
+        #geo_bound = constraints.Bounds(lambda p: [(geo(p, election_name)[0] - geo(p, election_name)[1])/num_districts], (-0.08, 0.08))
         cs.append(geo_bound)
 
     if accept_func == None: accept_func = accept.always_accept
