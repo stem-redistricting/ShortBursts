@@ -26,8 +26,8 @@ import json
 ## Read in 
 """
 Ellen's note: This tells us what to type when running the short burst.  
-wFor example: python sb_runs_gerrymanderer.py PA 500 10 T16SEND 0
-means we'll run the PA map, 500 steps, length of burst is 10 (so 50 bursts), use the 
+wFor example: python sb_runs_gerrymanderer.py PA cong 500 10 T16SEND 0
+means we'll run the PA map, the congressional map, 500 steps, length of burst is 10 (so 50 bursts), use the 
 T16Senate Democratic column, and use score function labeled 0 (see score_functs below)
 """
 parser = argparse.ArgumentParser(description="SB Chain run", 
@@ -35,6 +35,9 @@ parser = argparse.ArgumentParser(description="SB Chain run",
 parser.add_argument("state", metavar="state_id", type=str,
                     choices=["VA", "TX", "AR", "CO", "LA", "NM", "PA"],
                     help="which state to run chains on")
+parser.add_argument("map", metavar = "map_type", type = str,
+                    choices = ["cong", "lower", "upper"],
+                    help = "which map is it, cong, lower, or upper")
 parser.add_argument("iters", metavar="chain_length", type=int,
                     help="how long to run each chain")
 parser.add_argument("l", metavar="burst_length", type=int,
@@ -77,7 +80,7 @@ TARGET_POP_COL = args.col
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./{}_seed/{}seed.json".format(args.state, args.state)
+graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state, args.state)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -121,7 +124,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./{}_seed/{}assignment.json".format(args.state, args.state), "r") as f:
+with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state, args.state), "r") as f:
     cddict = json.load(f)
 
 cddict = {int(k):v for k,v in cddict.items()}
@@ -191,12 +194,12 @@ for n in range(N_SAMPS):
 
     print("\tSaving results", flush=True)
 
-    f_out = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(METRIC.capitalize(), args.state,
+    f_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(args.state + args.map, METRIC.capitalize(), args.state + args.map,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
     np.save(f_out, sb_obs[1])
 
-    f_out_part = "data/states/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}_max_part.p".format(METRIC.capitalize(), args.state,
+    f_out_part = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}_max_part.p".format(args.state + args.map, METRIC.capitalize(), args.state + args.map,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
 

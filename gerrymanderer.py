@@ -42,7 +42,7 @@ def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, c
         cs.append(eg_bound)
         
     if mm_constraint:
-        mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.08, 0.08))
+        mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.16, 0.16))
         cs.append(mm_bound)
     
     #NOTE: Right now this checks that the difference in geo scores is between -2 and 2!
@@ -50,8 +50,8 @@ def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, c
     #Surely this should eventually change
     #NOTE: If we want to, we could make the geo/num_dists be in between -0.08 and 0.08 now (b/c seats is in the config)
     if geo_constraint:
-        geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
-        #geo_bound = constraints.Bounds(lambda p: [(geo(p, election_name)[0] - geo(p, election_name)[1])/num_districts], (-0.08, 0.08))
+        #geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
+        geo_bound = constraints.Bounds(lambda p: [(geo(p, election_name)[0] - geo(p, election_name)[1])/num_districts], (-0.16, 0.16))
         cs.append(geo_bound)
 
     if accept_func == None: accept_func = accept.always_accept
