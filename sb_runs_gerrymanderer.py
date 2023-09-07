@@ -26,7 +26,7 @@ import json
 ## Read in 
 """
 Ellen's note: This tells us what to type when running the short burst.  
-For example: python sb_runs_gerrymanderer.py PA 500 10 T16SEND 0
+wFor example: python sb_runs_gerrymanderer.py PA 500 10 T16SEND 0
 means we'll run the PA map, 500 steps, length of burst is 10 (so 50 bursts), use the 
 T16Senate Democratic column, and use score function labeled 0 (see score_functs below)
 """
@@ -208,3 +208,4 @@ for n in range(N_SAMPS):
 
     with open(f_out_part, "wb") as f_out:
         pickle.dump(max_stats, f_out)
+        

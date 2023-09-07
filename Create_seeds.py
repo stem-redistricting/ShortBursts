@@ -32,7 +32,7 @@ import os
 import datetime  #For keeping track of runtime
 import pandas as pd
 import json
-
+from pathlib import Path # to create directory if needed
 
 
 """
@@ -45,11 +45,13 @@ Can also update initial districting plan by changing 'assignment=' in the initia
 beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
-
-outdir="./PA_seed/"
+seed_location_prefix = "./data/seeds/PA/"
+outdir="PA_seed/"
 file_prefix = "PA"
 
 election_name = "SEN16"
+
+Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
 
 total_steps_in_run=500
 save_district_graph_mod=1
@@ -57,7 +59,7 @@ save_district_plot_mod=100
 
 os.makedirs(outdir, exist_ok=True)
 #graph = Graph.from_file("./PA.shp")
-graph = Graph.from_json("./PA.json")
+graph = Graph.from_json(seed_location_prefix + "PA.json")
 
 elections = [
     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
@@ -79,7 +81,10 @@ initial_partition = GeographicPartition(graph,
                                         assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
-df=gpd.read_file("./PA.shp")
+df=gpd.read_file(seed_location_prefix + "PA.shp")
+
+num_districts = len(initial_partition)
+print("the number of districts we got was: ", num_districts)
 
 # The ReCom proposal needs to know the ideal population for the districts so that
 # we can improve speed by bailing early on unbalanced partitions.
@@ -115,27 +120,27 @@ chain = MarkovChain(
   
 #Run through chain, building 
 for t, part in enumerate(chain):
-    geo_score = abs(geo(part, election_name)[0]-geo(part, election_name)[1])  # difference in geo scores
+    geo_score = abs((geo(part, election_name)[0]-geo(part, election_name)[1])/num_districts)  # difference in geo scores divided by number of districts
     eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
     mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    if geo_score <=2 and eg_score <= 0.08 and mm_score <=0.08: #We may want to change these values!!
+    if geo_score <=0.16 and eg_score <= 0.08 and mm_score <=0.16: #We may want to change these values!!
         print("found it!")
         print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
         
         # export graph of this partition to json file
-        (part.graph).to_json(outdir + file_prefix + "seed.json")
+        (part.graph).to_json(seed_location_prefix + outdir + file_prefix + "seed.json")
         
         # Create the assignment for this partition
         seed_dict = dict()
         seed_nodes = list(part.graph.nodes)
         for node in seed_nodes:
             seed_dict[node] = part.assignment[node]
-        with open("./PA_seed/PAassignment.json", "w") as outfile:
+        with open(seed_location_prefix + outdir + file_prefix + "seed_assignment.json", "w") as outfile:
             json.dump(seed_dict, outfile)
         
         #Create plot of this partition and export
         df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8)) 
-        plot_output_file = outdir + file_prefix + "seed_plot.png" # export plot
+        plot_output_file = seed_location_prefix + outdir + file_prefix + "seed_plot.png" # export plot
         plt.savefig(plot_output_file)
         plt.close()
         break
