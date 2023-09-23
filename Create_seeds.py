@@ -46,20 +46,26 @@ beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
 seed_location_prefix = "./data/seeds/PA/"
-outdir="PA_seed/"
-file_prefix = "PA"
+outdir="PAcong_seed/"
+file_prefix = "PAcong"
 
 election_name = "SEN16"
 
 Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
 
-total_steps_in_run=500
+total_steps_in_run=5000
 save_district_graph_mod=1
 save_district_plot_mod=100
 
-os.makedirs(outdir, exist_ok=True)
+
 #graph = Graph.from_file("./PA.shp")
 graph = Graph.from_json(seed_location_prefix + "PA.json")
+#graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#graph = Graph.from_file(seed_location_prefix + "TX_vtds.shp")
+#graph = Graph.from_json(seed_location_prefix + "TX.json")
+
+#elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
+
 
 elections = [
     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
@@ -68,6 +74,8 @@ elections = [
     Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
     Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
 ]
+
+
 # Population updater, for computing how close to equality the district
 # populations are. "TOT_POP" is the population column from our shapefile.
 my_updaters = {"population": updaters.Tally("TOTPOP", alias="population")}
@@ -90,13 +98,14 @@ print("the number of districts we got was: ", num_districts)
 # we can improve speed by bailing early on unbalanced partitions.
 
 ideal_population = sum(initial_partition["population"].values()) / len(initial_partition)
+print(initial_partition["population"].values())
 
 # We use functools.partial to bind the extra parameters (pop_col, pop_target, epsilon, node_repeats)
 # of the recom proposal.
 proposal = partial(recom,
                    pop_col="TOTPOP",
                    pop_target=ideal_population,
-                   epsilon=0.02,
+                   epsilon=0.05,
                    node_repeats=2
                   )
 
@@ -105,7 +114,7 @@ compactness_bound = constraints.UpperBound(
     2*len(initial_partition["cut_edges"])
 )
 
-pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.02)
+pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.05)
 
 chain = MarkovChain(
     proposal=proposal,

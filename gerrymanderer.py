@@ -20,7 +20,7 @@ from helpers import geo
 
 def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, compactness=True, 
                         geo_constraint = False, eg_constraint = False, mm_constraint = False, 
-                        pop="TOT_POP", accept_func=None, election_name = "T16SEN"):
+                        pop="TOT_POP", accept_func=None, election_name = "SEN14"):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
     proposal = partial(recom,
@@ -70,9 +70,9 @@ class Gingleator:
     of gingles districts.
     """
 
-    def __init__(self, initial_partition, num_districts, threshold=0.4, 
+    def __init__(self, initial_partition, num_districts, threshold=0.5, 
                  score_funct=None, target_perc_col=None, eg = None,
-                 pop_col="TOTPOP", epsilon=0.05, tot_seats = None, election_name = "T15SEN"):
+                 pop_col="TOTPOP", epsilon=0.05, tot_seats = None, election_name = "SEN14"):
         self.part = initial_partition
         self.seats = num_districts
         self.threshold = threshold
@@ -134,10 +134,19 @@ class Gingleator:
             if verbose: print("*", end="", flush=True)
             chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col)
+            
+            #Set up dataframe to hold all scores
+            scores_column_names = ["Target Column Districts Won", "GEO score", "Efficiency Gap", "Mean-Median"]
+            all_scores_df = pd.DataFrame(columns = scores_column_names)
 
             for j, part in enumerate(chain):
                 part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
+                curr = len(all_scores_df) #Index of current plan
+                all_scores_df.at[curr, "Target Column Districts Won"] = part_score
+                all_scores_df.at[curr, "GEO score"] = self.eg(part, self.target_perc, self.seats)
+                all_scores_df.at[curr, "Efficiency Gap"] = self.eg(part, self.target_perc, self.seats)
+                all_scores_df.at[curr, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
                 else:
@@ -145,7 +154,7 @@ class Gingleator:
 
                 if tracking_fun != None: tracking_fun(part, i, j)
 
-        return (max_part, observed_num_ops)
+        return (max_part, observed_num_ops, all_scores_df)
 
 
     def variable_len_short_burst(self, num_iters, stuck_buffer=10,

@@ -22,6 +22,7 @@ from gerrymanderer import Gingleator
 from gerrychain.updaters import election
 #from little_helpers import *
 import json
+from pathlib import Path # to create directory if needed
 
 ## Read in 
 """
@@ -29,11 +30,16 @@ Ellen's note: This tells us what to type when running the short burst.
 wFor example: python sb_runs_gerrymanderer.py PA cong 500 10 T16SEND 0
 means we'll run the PA map, the congressional map, 500 steps, length of burst is 10 (so 50 bursts), use the 
 T16Senate Democratic column, and use score function labeled 0 (see score_functs below)
+
+python sb_runs_gerrymanderer.py MA cong 500 10 SEN18D 0  
+
+python sb_runs_gerrymanderer.py TX cong 500 10 SEN14D 0  
+
 """
 parser = argparse.ArgumentParser(description="SB Chain run", 
                                  prog="sb_runs_gerrymanderer.py")
 parser.add_argument("state", metavar="state_id", type=str,
-                    choices=["VA", "TX", "AR", "CO", "LA", "NM", "PA"],
+                    choices=["PA", "MA", "TX"],
                     help="which state to run chains on")
 parser.add_argument("map", metavar = "map_type", type = str,
                     choices = ["cong", "lower", "upper"],
@@ -51,14 +57,15 @@ args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
 #Probably these should eventually be arguments, as above
-METRIC = "geo"
-#METRIC = "eg"
-#METRIC = "mm"
+#METRIC = "GEO"
+#METRIC = "EG"
+#METRIC = "MM"
+METRIC = None
 BIAS = False
 
 
 
-num_h_districts = {"VA": 100, "TX": 150, "AR": 100, "CO": 65, "LA": 105, "NM": 70, "PA": 18}
+num_h_districts = {"PAcong": 18, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31}
 
 
 score_functs = {0: None, 1: Gingleator.reward_partial_dist, 
@@ -67,12 +74,12 @@ score_functs = {0: None, 1: Gingleator.reward_partial_dist,
                 4: Gingleator.penalize_avg_over}
 
 BURST_LEN = args.l
-NUM_DISTRICTS = num_h_districts[args.state]
+NUM_DISTRICTS = num_h_districts[args.state + args.map]
 ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.045
+EPS = 0.05
 TARGET_POP_COL = args.col
 
 
@@ -80,43 +87,63 @@ TARGET_POP_COL = args.col
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state, args.state)
+graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
-elections = [
-    Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
-    Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
-    Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
-    Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
-    Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
-]
+# elections = [
+#     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
+#     Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
+#     Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
+#     Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
+#     Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
+# ]
 #NEW STUFF ABOVE
+#elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
+#elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 
 #Note: The stuff above and below is redundant right now and should be fixed/condensed at some point
 my_updaters = {"population" : Tally(POP_COL, alias="population"),
-               "VAP": Tally("VAP"),
-               "BVAP": Tally("BVAP"),
-               "HVAP": Tally("HVAP"),
-               "WVAP": Tally("WVAP"),
-               "T16SENR": Tally("T16SENR"), #added
-               "T16SEND": Tally("T16SEND"), #added
-               "T16SEN": Election(
-                           "2016 Senate",
-                           {"Democratic": "T16SEND", "Republican": "T16SENR"},
-                           alias="T16SEN" #added to do eg . . .
-                           ),
-               "PRES16R": Tally("PRES16R"),
-               #"ELECTION": election,
-               "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},
-               "cut_edges": cut_edges}
+                "VAP": Tally("VAP"),
+                "BVAP": Tally("BVAP"),
+                "HVAP": Tally("HVAP"),
+                "WVAP": Tally("WVAP"),
+                "T16SENR": Tally("T16SENR"), #added
+                "T16SEND": Tally("T16SEND"), #added
+                "T16SEN": Election(
+                            "2016 Senate",
+                            {"Democratic": "T16SEND", "Republican": "T16SENR"},
+                            alias="T16SEN" #added to do eg . . .
+                            ),
+                "PRES16R": Tally("PRES16R"),
+                #"ELECTION": election,
+                "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},
+                "cut_edges": cut_edges}
+# my_updaters = {"population" : Tally(POP_COL, alias="population"),
+#                "SEN18R": Tally("SEN18R"), #added
+#                "SEN18D": Tally("SEN18D"), #added
+#                "SEN18": Election(
+#                            "2018 Senate",
+#                            {"Democratic": "SEN18D", "Republican": "SEN18R"},
+#                            alias="SEN18" #added to do eg . . .
+#                            ),
+#                "cut_edges": cut_edges}
+# my_updaters = {"population" : Tally(POP_COL, alias="population"),
+#                "SEN14R": Tally("SEN14R"), #added
+#                "SEN14D": Tally("SEN14D"), #added
+#                "SEN14": Election(
+#                            "2014 Senate",
+#                            {"Democratic": "SEN14D", "Republican": "SEN14R"},
+#                            alias="SEN14" #added to do eg . . .
+#                            ),
+#                "cut_edges": cut_edges}
 
 
 print("Creating seed plan", flush=True)
 
-election_name = "T16SEN"
+election_name = "SEN14"
 
-print("using T16SEN election")
+print("using SEN14 election")
 
 total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
@@ -124,7 +151,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state, args.state), "r") as f:
+with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 cddict = {int(k):v for k,v in cddict.items()}
@@ -165,50 +192,65 @@ print("Starting Short Bursts Runs", flush=True)
 for n in range(N_SAMPS):
     print("Metric chosen is ", METRIC)
     #If, elif below accounts for changing metric/bias
-    if METRIC == "geo":
+    if METRIC == "GEO":
         if BIAS:
+            print("Performing a biased short burst run using the GEO metric")
             sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
         else: 
+            print("Performing a short burst run with GEO metric restricted")
             sb_obs = gingles.geo_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
-    elif METRIC == "eg":
+    elif METRIC == "EG":
         if BIAS:
+            print("Performing a biased short burst run using the Efficiency Gap")
             sb_obs = gingles.eg_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
         else:
+            print("Performing a short burst run with Efficiency Gap restricted")
             sb_obs = gingles.eg_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
-    elif METRIC == "mm":
+    elif METRIC == "MM":
         if BIAS:
+            print("Performing a biased short burst run using the Mean Median difference")
             sb_obs = gingles.mm_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
         else:
+            print("Performing a short burst run with Mean Median difference restricted")
             sb_obs = gingles.mm_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
     else:
-        print("you entered something incorrectly!  Doing a geo biased run")
-        sb_obs = gingles.geo_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+        print("Doing a short burst while evaluating all metrics.")
+        sb_obs = gingles.short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                      maximize=True, verbose=False)
     print("\tFinished chain {}".format(n), flush=True)
 
     print("\tSaving results", flush=True)
+    
+    Path("data/results/{}/{}/".format(args.state + args.map, METRIC.upper())).mkdir(parents=True, exist_ok=True) # In case a directory doesn't exist
 
-    f_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(args.state + args.map, METRIC.capitalize(), args.state + args.map,
+    f_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(args.state + args.map, METRIC, args.state + args.map,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
     np.save(f_out, sb_obs[1])
 
-    f_out_part = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}_max_part.p".format(args.state + args.map, METRIC.capitalize(), args.state + args.map,
+    f_out_part = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}_max_part.p".format(args.state + args.map, METRIC, args.state + args.map,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                         ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
 
-    max_stats = {"VAP": sb_obs[0][0]["VAP"],
-                 "BVAP": sb_obs[0][0]["BVAP"],
-                 "WVAP": sb_obs[0][0]["WVAP"],
-                 "HVAP": sb_obs[0][0]["HVAP"],
-                 "T16SENR": sb_obs[0][0]["T16SENR"]}
+    max_stats = {#"VAP": sb_obs[0][0]["VAP"],
+                 #"BVAP": sb_obs[0][0]["BVAP"],
+                 #"WVAP": sb_obs[0][0]["WVAP"],
+                 #"HVAP": sb_obs[0][0]["HVAP"],
+                 "SEN14R": sb_obs[0][0]["SEN14R"],
+                 "SEN14D": sb_obs[0][0]["SEN14D"]}
 
     with open(f_out_part, "wb") as f_out:
         pickle.dump(max_stats, f_out)
+        
+    if METRIC == None:
+        df_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.csv".format(args.state + args.map, METRIC, args.state + args.map,
+                                                            NUM_DISTRICTS, TARGET_POP_COL, EPS, 
+                                                            ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
+        sb_obs[2].to_csv(df_out, header=True) 
         
