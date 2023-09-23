@@ -141,9 +141,9 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
 
 print("Creating seed plan", flush=True)
 
-election_name = "SEN14"
+election_name = "T16SEN"
 
-print("using SEN14 election")
+print("using T16SEN election")
 
 total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
@@ -227,7 +227,7 @@ for n in range(N_SAMPS):
 
     print("\tSaving results", flush=True)
     
-    Path("data/results/{}/{}/".format(args.state + args.map, METRIC.upper())).mkdir(parents=True, exist_ok=True) # In case a directory doesn't exist
+    Path("data/results/{}/{}/".format(args.state + args.map, METRIC)).mkdir(parents=True, exist_ok=True) # In case a directory doesn't exist
 
     f_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.npy".format(args.state + args.map, METRIC, args.state + args.map,
                                                         NUM_DISTRICTS, TARGET_POP_COL, EPS, 
@@ -242,8 +242,8 @@ for n in range(N_SAMPS):
                  #"BVAP": sb_obs[0][0]["BVAP"],
                  #"WVAP": sb_obs[0][0]["WVAP"],
                  #"HVAP": sb_obs[0][0]["HVAP"],
-                 "SEN14R": sb_obs[0][0]["SEN14R"],
-                 "SEN14D": sb_obs[0][0]["SEN14D"]}
+                 "T16SENR": sb_obs[0][0]["T16SENR"],
+                 "T16SEND": sb_obs[0][0]["T16SEND"]}
 
     with open(f_out_part, "wb") as f_out:
         pickle.dump(max_stats, f_out)
