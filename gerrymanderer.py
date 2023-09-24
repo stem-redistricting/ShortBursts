@@ -147,7 +147,7 @@ class Gingleator:
                 geo_score = geo(part, self.election_name)
                 all_scores_df.at[curr, "GEO Dem"] = geo_score[0]
                 all_scores_df.at[curr, "GEO Rep"] = geo_score[1]
-                all_scores_df.at[curr, "GEO score ratio"] = abs((geo_score[0] - geo_score[1])/self.seats)
+                all_scores_df.at[curr, "GEO score ratio"] = (geo_score[0] - geo_score[1])/self.seats
                 all_scores_df.at[curr, "Efficiency Gap with wasted votes"] = part[self.election_name].efficiency_gap()
                 all_scores_df.at[curr, "Efficiency Gap with S, V"] = self.eg(part, self.target_perc, self.seats)
                 all_scores_df.at[curr, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
