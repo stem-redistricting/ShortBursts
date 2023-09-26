@@ -129,28 +129,28 @@ class Gingleator:
             tracking_fun: Function to save information about each observed plan.
         """
         observed_num_ops = np.zeros((num_bursts, num_steps))
+        
+        #Set up dataframe to hold all scores
+        scores_column_names = ["Target Column Districts Won", "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes", "Efficiency Gap with S, V", "Mean-Median"]
+        all_scores_df = pd.DataFrame(columns = scores_column_names)
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
             chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col)
             
-            #Set up dataframe to hold all scores
-            scores_column_names = ["Target Column Districts Won", "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes", "Efficiency Gap with S, V", "Mean-Median"]
-            all_scores_df = pd.DataFrame(columns = scores_column_names)
 
             for j, part in enumerate(chain):
                 part_score = self.score(part, self.target_perc, self.threshold)
                 observed_num_ops[i][j] = part_score
-                curr = len(all_scores_df) #Index of current plan
-                all_scores_df.at[curr, "Target Column Districts Won"] = part_score
+                all_scores_df.at[i*num_steps+j, "Target Column Districts Won"] = part_score
                 geo_score = geo(part, self.election_name)
-                all_scores_df.at[curr, "GEO Dem"] = geo_score[0]
-                all_scores_df.at[curr, "GEO Rep"] = geo_score[1]
-                all_scores_df.at[curr, "GEO score ratio"] = (geo_score[0] - geo_score[1])/self.seats
-                all_scores_df.at[curr, "Efficiency Gap with wasted votes"] = part[self.election_name].efficiency_gap()
-                all_scores_df.at[curr, "Efficiency Gap with S, V"] = self.eg(part, self.target_perc, self.seats)
-                all_scores_df.at[curr, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
+                all_scores_df.at[i*num_steps+j, "GEO Dem"] = geo_score[0]
+                all_scores_df.at[i*num_steps+j, "GEO Rep"] = geo_score[1]
+                all_scores_df.at[i*num_steps+j, "GEO score ratio"] = (geo_score[0] - geo_score[1])/self.seats
+                all_scores_df.at[i*num_steps+j, "Efficiency Gap with wasted votes"] = part[self.election_name].efficiency_gap()
+                all_scores_df.at[i*num_steps+j, "Efficiency Gap with S, V"] = self.eg(part, self.target_perc, self.seats)
+                all_scores_df.at[i*num_steps+j, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
                 else:
