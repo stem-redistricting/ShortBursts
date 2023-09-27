@@ -81,6 +81,7 @@ N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
 EPS = 0.05
 TARGET_POP_COL = args.col
+ELECTION = args.col[:-1]  #remove the party name
 
 
 ## Setup graph, updaters, elections, and initial partition
@@ -103,22 +104,22 @@ graph = Graph.from_json(graphname)
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 
 #Note: The stuff above and below is redundant right now and should be fixed/condensed at some point
-my_updaters = {"population" : Tally(POP_COL, alias="population"),
-                "VAP": Tally("VAP"),
-                "BVAP": Tally("BVAP"),
-                "HVAP": Tally("HVAP"),
-                "WVAP": Tally("WVAP"),
-                "T16SENR": Tally("T16SENR"), #added
-                "T16SEND": Tally("T16SEND"), #added
-                "T16SEN": Election(
-                            "2016 Senate",
-                            {"Democratic": "T16SEND", "Republican": "T16SENR"},
-                            alias="T16SEN" #added to do eg . . .
-                            ),
-                "PRES16R": Tally("PRES16R"),
-                #"ELECTION": election,
-                "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},
-                "cut_edges": cut_edges}
+# my_updaters = {"population" : Tally(POP_COL, alias="population"),
+#                 "VAP": Tally("VAP"),
+#                 "BVAP": Tally("BVAP"),
+#                 "HVAP": Tally("HVAP"),
+#                 "WVAP": Tally("WVAP"),
+#                 "T16SENR": Tally("T16SENR"), #added
+#                 "T16SEND": Tally("T16SEND"), #added
+#                 "T16SEN": Election(
+#                             "2016 Senate",
+#                             {"Democratic": "T16SEND", "Republican": "T16SENR"},
+#                             alias="T16SEN" #added to do eg . . .
+#                             ),
+#                 "PRES16R": Tally("PRES16R"),
+#                 #"ELECTION": election,
+#                 "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},
+#                 "cut_edges": cut_edges}
 # my_updaters = {"population" : Tally(POP_COL, alias="population"),
 #                "SEN18R": Tally("SEN18R"), #added
 #                "SEN18D": Tally("SEN18D"), #added
@@ -137,6 +138,16 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
 #                            alias="SEN14" #added to do eg . . .
 #                            ),
 #                "cut_edges": cut_edges}
+elections = [Election(ELECTION, {"Democratic": ELECTION+"D", "Republican": ELECTION + "R"})]
+my_updaters = {"population" : Tally(POP_COL, alias="population"),
+                ELECTION+"R": Tally(ELECTION+"R"), #added
+                ELECTION+"D": Tally(ELECTION+"D"), #added
+                ELECTION : Election(
+                            ELECTION,
+                            {"Democratic": ELECTION + "D", "Republican": ELECTION + "R"},
+                            alias=ELECTION #added to do eg . . .
+                            ),
+                "cut_edges": cut_edges}
 
 
 print("Creating seed plan", flush=True)
