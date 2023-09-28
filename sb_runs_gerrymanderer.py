@@ -79,7 +79,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.05
+EPS = 0.09
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -88,7 +88,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -152,9 +152,8 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
 
 print("Creating seed plan", flush=True)
 
-election_name = "T16SEN"
 
-print("using T16SEN election")
+print("using " + ELECTION + " election")
 
 total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
 
@@ -162,7 +161,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 cddict = {int(k):v for k,v in cddict.items()}
@@ -178,7 +177,7 @@ init_partition = GeographicPartition(graph,
 
 gingles = Gingleator(init_partition, num_districts = NUM_DISTRICTS, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
-                     target_perc_col="{}_perc".format(TARGET_POP_COL), election_name = election_name)
+                     target_perc_col="{}_perc".format(TARGET_POP_COL), election_name = ELECTION)
 
 """
 The if/elseif commands below make sure that if we want to maximize D votes, we devide by D+R votes (same for R)
@@ -253,8 +252,8 @@ for n in range(N_SAMPS):
                  #"BVAP": sb_obs[0][0]["BVAP"],
                  #"WVAP": sb_obs[0][0]["WVAP"],
                  #"HVAP": sb_obs[0][0]["HVAP"],
-                 "T16SENR": sb_obs[0][0]["T16SENR"],
-                 "T16SEND": sb_obs[0][0]["T16SEND"]}
+                 ELECTION + "R": sb_obs[0][0][ELECTION + "R"],
+                 ELECTION + "D": sb_obs[0][0][ELECTION + "D"]}
 
     with open(f_out_part, "wb") as f_out:
         pickle.dump(max_stats, f_out)
