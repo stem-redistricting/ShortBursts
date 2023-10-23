@@ -10,12 +10,13 @@ from gerrychain import (GeographicPartition, Partition, Graph, MarkovChain,
                         proposals, updaters, constraints, accept, Election)
 from gerrychain.updaters import (cut_edges, election)
 from gerrychain.proposals import recom, propose_random_flip
+from gerrychain.metrics.compactness import polsby_popper
 from functools import (partial, reduce)
 import numpy as np
 import pandas as pd
 import random
 from statistics import (mean, median)
-from helpers import geo
+from helpers import geo, declination
 
 
 def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, compactness=True, 
@@ -131,7 +132,8 @@ class Gingleator:
         observed_num_ops = np.zeros((num_bursts, num_steps))
         
         #Set up dataframe to hold all scores
-        scores_column_names = ["Target Column Districts Won", "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes", "Efficiency Gap with S, V", "Mean-Median"]
+        scores_column_names = ["Target Column Districts Won", "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes",
+                               "Efficiency Gap with S, V", "Mean-Median", "Declination", "Polsby Popper Average", "Polsby Popper Min"]
         all_scores_df = pd.DataFrame(columns = scores_column_names)
 
         for i in range(num_bursts):
@@ -151,6 +153,10 @@ class Gingleator:
                 all_scores_df.at[i*num_steps+j, "Efficiency Gap with wasted votes"] = part[self.election_name].efficiency_gap()
                 all_scores_df.at[i*num_steps+j, "Efficiency Gap with S, V"] = self.eg(part, self.target_perc, self.seats)
                 all_scores_df.at[i*num_steps+j, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
+                pp_dict = polsby_popper(part)
+                all_scores_df.at[i*num_steps+j, "Polsby Popper Average"] = sum(pp_dict.values())/len(pp_dict)
+                all_scores_df.at[i*num_steps+j, "Polsby Popper Min"] = min(pp_dict.values())
+                all_scores_df.at[i*num_steps+j, "Declination"] = declination(part, self.election_name)
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
                 else:
@@ -580,7 +586,16 @@ class Gingleator:
         V = mean(part[target_perc].values())
         S = cls.num_opportunity_dists(part, target_perc, 0.5)/seats
         print("V is ", V, "S is", S, "eg is ", S-2*V+1/2)
-        return S-2*V+1/2
+        party = target_perc[-6]
+        if party == "D":
+            EG = S-2*V+1/2
+            print("from perspective of D")
+        elif party == "R":
+            EG = -(S-2*V+1/2)
+            print("from perspective of R")
+        else:
+            EG = 0
+        return EG
     
     #Ellen added mm score below
     @classmethod

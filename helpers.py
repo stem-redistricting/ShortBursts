@@ -7,6 +7,7 @@ Created on Fri May 12 14:25:02 2023
 """
 
 import pandas as pd
+import numpy as np
 
 """
 GEO metric below.
@@ -152,3 +153,25 @@ def geo(part, election):
         geo_scores_list.append(geo_score)
     
     return geo_scores_list
+
+
+def declination(part, election):
+    #Compute the declination of an election
+    D_votes = part[election].votes("Democratic")
+    R_votes = part[election].votes("Republican")
+    sum_votes = tuple(rep + dem for rep, dem in zip(R_votes, D_votes))
+    vals = tuple(dem / tot for dem, tot in zip(D_votes, sum_votes))
+
+  
+    bel = sorted(filter(lambda x: x <=  0.5, vals))
+    abo = sorted(filter(lambda x: x > 0.5, vals))
+
+    # Undefined if each party does not win at least one seat
+    if len(bel) < 1 or len(abo) < 1:
+        return False
+
+    theta = np.arctan((1-2*np.mean(bel))*len(vals)/len(bel))
+    gamma = np.arctan((2*np.mean(abo)-1)*len(vals)/len(abo))
+
+    # A little extra precision just in case :)
+    return 2.0*(gamma-theta)/3.1415926535 

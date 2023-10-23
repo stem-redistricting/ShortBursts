@@ -12,7 +12,7 @@ import numpy as np
 import pickle
 from functools import partial
 from gerrychain import Graph, GeographicPartition, Partition, Election, accept
-from gerrychain.updaters import Tally, cut_edges
+from gerrychain.updaters import Tally, cut_edges, perimeter, exterior_boundaries, boundary_nodes, interior_boundaries, cut_edges_by_part
 from gerrychain import MarkovChain
 from gerrychain.proposals import recom
 from gerrychain.accept import always_accept
@@ -79,7 +79,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.09
+EPS = 0.05
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -88,7 +88,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -147,7 +147,15 @@ my_updaters = {"population" : Tally(POP_COL, alias="population"),
                             {"Democratic": ELECTION + "D", "Republican": ELECTION + "R"},
                             alias=ELECTION #added to do eg . . .
                             ),
-                "cut_edges": cut_edges}
+                "cut_edges": cut_edges,
+                "perimeter": perimeter,
+                "area": Tally("area", alias="area"),
+                "exterior_boundaries": exterior_boundaries, 
+                "boundary_nodes": boundary_nodes,
+                "interior_boundaries": interior_boundaries,
+                "cut_edges_by_part": cut_edges_by_part} # area, perimiter, exterior_boundaries, boundary_nodes needed for polsby popper score
+
+
 
 
 print("Creating seed plan", flush=True)
@@ -161,7 +169,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 cddict = {int(k):v for k,v in cddict.items()}
