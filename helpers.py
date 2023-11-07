@@ -36,6 +36,7 @@ def geo(part, election):
     edges_df = pd.DataFrame(edges_list)
     #print("edges: ", edges_df)
     districts_set  = set({i for lst in edges_list for i in lst})
+    districts = list(districts_set)
     #print("districts set: ", districts_set)
     #print("districts set has size: ", len(districts_set))
     
@@ -50,7 +51,6 @@ def geo(part, election):
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")
     #dist_num = [i+1 for i in range(len(D_votes))]  # removed this in favor of districts below
-    districts = list(districts_set)
     #print("districts: ", districts)
     #print("parts: ", (part.parts).keys())
     election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = (part.parts).keys(), columns =[1,2])  
