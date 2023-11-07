@@ -31,9 +31,13 @@ def geo(part, election):
     # This first bit comes from our recom code
     edges_set=set()
     for e in part["cut_edges"]:
-        edges_set.add( (part.assignment[e[0]],part.assignment[e[1]] ))
+        edges_set.add( (part.assignment[e[0]],part.assignment[e[1]]))   # This was edited for Oklahoma.  Not sure why it was having leading 0s before
     edges_list = list(edges_set)
     edges_df = pd.DataFrame(edges_list)
+    #print("edges: ", edges_df)
+    districts_set  = set({i for lst in edges_list for i in lst})
+    #print("districts set: ", districts_set)
+    #print("districts set has size: ", len(districts_set))
     
     # Clean up the dataframe (comes from GEO code)
     tmp_df = edges_df.rename(columns={0:1,1:0},copy=False)
@@ -45,10 +49,13 @@ def geo(part, election):
     
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")
-    dist_num = [i+1 for i in range(len(D_votes))]
-    election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = dist_num, columns =[1,2])
+    #dist_num = [i+1 for i in range(len(D_votes))]  # removed this in favor of districts below
+    districts = list(districts_set)
+    #print("districts: ", districts)
+    #print("parts: ", (part.parts).keys())
+    election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = (part.parts).keys(), columns =[1,2])  
     
-    num_parties = len(election_df.columns)            
+    num_parties = len(election_df.columns)           
     total_votes =  election_df.iloc[:,0:num_parties+1].sum(axis=1)
 
     vote_share_df = pd.DataFrame(index=election_df.index,columns=election_df.columns)
@@ -63,11 +70,11 @@ def geo(part, election):
         
     #Build lists of neighbors
     #neighbors[i] will contain list of neighbors of district i
-    districts=election_df.index.tolist()  #Get list of districts from election_df
     neighbors = dict()  #Initiate empty dictionary of neighbors
     for district in districts:
         n_index = all_edges_df[(all_edges_df[0] == district)][1].tolist()   #Get index in all_edges_df of neighbors of i
         neighbors[district] = n_index  #Add values to neighbors list
+    #print("neighbors: ", neighbors)
     
     #List to hold GEO scores
     geo_scores_list = []
@@ -88,7 +95,7 @@ def geo(part, election):
       
         #Compute Avg Neighbor Vote Share 
         for district in districts:
-            total_neighborhood_votes = geo_df.loc[neighbors[district],'Vote Share'].sum() + geo_df.at[district,'Vote Share']
+            total_neighborhood_votes = geo_df.loc[neighbors[district],'Vote Share'].sum() + geo_df.at[district,'Vote Share'] 
             geo_df.at[district,'Avg Neighbor Vote Share'] = total_neighborhood_votes / (len(neighbors[district])+1)
             
         #Use standard deviation of A_i to adjust votes to share, allow possibility of different adjustments for winning and losing districts 
@@ -145,12 +152,13 @@ def geo(part, election):
                         geo_df.at[k,'Total Votes Shared'] += votes_shared
                         
                             
-        
         #Count number of non-zero values in 'Made Competitive'        
         geo_score = geo_df['Made Competitive'].astype(bool).sum()
       
         #Add to returned list:
         geo_scores_list.append(geo_score)
+    
+    geo_scores_list.append(geo_df)
     
     return geo_scores_list
 

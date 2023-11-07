@@ -19,9 +19,9 @@ from statistics import (mean, median)
 from helpers import geo, declination
 
 
-def config_markov_chain(initial_part, num_districts, iters=1000, epsilon=0.05, compactness=True, 
+def config_markov_chain(initial_part, num_districts, election_name, iters=1000, epsilon=0.05, compactness=True, 
                         geo_constraint = False, eg_constraint = False, mm_constraint = False, 
-                        pop="TOT_POP", accept_func=None, election_name = "SEN14"):
+                        pop="TOT_POP", accept_func=None):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
     proposal = partial(recom,
@@ -71,9 +71,9 @@ class Gingleator:
     of gingles districts.
     """
 
-    def __init__(self, initial_partition, num_districts, threshold=0.5, 
+    def __init__(self, initial_partition, num_districts, election_name, threshold=0.5, 
                  score_funct=None, target_perc_col=None, eg = None,
-                 pop_col="TOTPOP", epsilon=0.05, tot_seats = None, election_name = "SEN14"):
+                 pop_col="TOTPOP", epsilon=0.05, tot_seats = None):
         self.part = initial_partition
         self.seats = num_districts
         self.threshold = threshold
@@ -138,7 +138,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
+            chain = config_markov_chain(max_part[0], election_name = self.election_name, num_districts = self.seats, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col)
             
 
@@ -163,6 +163,8 @@ class Gingleator:
                     max_part = (part, part_score) if part_score <= max_part[1] else max_part
 
                 if tracking_fun != None: tracking_fun(part, i, j)
+                
+                (geo(part, self.election_name)[2]).to_csv("./data/bugs/Chain_df.csv")
 
         return (max_part, observed_num_ops, all_scores_df)
 
@@ -319,7 +321,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, election_name = self.election_name,  iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         eg_constraint = True)
 
@@ -360,7 +362,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, election_name = self.election_name, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         geo_constraint = True)
 
@@ -402,7 +404,7 @@ class Gingleator:
 
         for i in range(num_bursts):
             if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, election_name = self.election_name, iters=num_steps,
                                         epsilon=self.epsilon, pop=self.pop_col,
                                         mm_constraint = True)
 
@@ -447,7 +449,6 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             eg_score = self.eg(part, self.target_perc, self.seats)
-            print("eg is", eg_score)
             if maximize and part_score >= prev_score and eg_score < 0.08 and eg_score > -0.08: return True
             elif not maximize and part_score <= prev_score  and eg_score < 0.08 and eg_score > -0.08: return True
             else: return random.random() < p
@@ -497,7 +498,6 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             geo_scores = geo(part, self.election_name)
-            print("geo is", geo_scores)
             if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True #NOTE: This choice is super arbitrary!!!  
             # We need to discuss!  Same goes for below!!!
             elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True
@@ -547,7 +547,6 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             mm_score = self.mm(part, self.target_perc, self.seats)
-            print("mean-median is", mm_score)
             if maximize and part_score >= prev_score and mm_score < 0.08 and mm_score > -0.08: return True #Again, we may want to change these bounds
             elif not maximize and part_score <= prev_score  and mm_score < 0.08 and mm_score > -0.08: return True
             else: return random.random() < p
@@ -585,14 +584,11 @@ class Gingleator:
 
         V = mean(part[target_perc].values())
         S = cls.num_opportunity_dists(part, target_perc, 0.5)/seats
-        print("V is ", V, "S is", S, "eg is ", S-2*V+1/2)
         party = target_perc[-6]
         if party == "D":
             EG = S-2*V+1/2
-            print("from perspective of D")
         elif party == "R":
             EG = -(S-2*V+1/2)
-            print("from perspective of R")
         else:
             EG = 0
         return EG
@@ -607,7 +603,6 @@ class Gingleator:
 
         mean_value = mean(part[target_perc].values())
         median_value = median(part[target_perc].values())
-        print("mean-median is ", median_value - mean_value)
         return median_value - mean_value
     
         

@@ -35,11 +35,14 @@ python sb_runs_gerrymanderer.py MA cong 500 10 SEN18D 0
 
 python sb_runs_gerrymanderer.py TX cong 500 10 SEN14D 0  
 
+python sb_runs_gerrymanderer.py OK cong 500 10 GOV18D 0 
+
+
 """
 parser = argparse.ArgumentParser(description="SB Chain run", 
                                  prog="sb_runs_gerrymanderer.py")
 parser.add_argument("state", metavar="state_id", type=str,
-                    choices=["PA", "MA", "TX"],
+                    choices=["PA", "MA", "TX", "OK"],
                     help="which state to run chains on")
 parser.add_argument("map", metavar = "map_type", type = str,
                     choices = ["cong", "lower", "upper"],
@@ -65,7 +68,8 @@ BIAS = False
 
 
 
-num_h_districts = {"PAcong": 18, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31}
+num_h_districts = {"PAcong": 18, "PAupper": 50, "PAlower": 203, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31, "OKcong": 5,
+                   "OKlower": 101, "OKupper": 48}
 
 
 score_functs = {0: None, 1: Gingleator.reward_partial_dist, 
@@ -88,7 +92,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -169,10 +173,12 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
-cddict = {int(k):v for k,v in cddict.items()}
+print(cddict.items())
+cddict = {int(k):v for k,v in cddict.items()}  #changed this from int(k)
+
 
 init_partition = Partition(graph, assignment=cddict, updaters=my_updaters)
 ## Above is from sb_runs

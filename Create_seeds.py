@@ -45,11 +45,10 @@ Can also update initial districting plan by changing 'assignment=' in the initia
 beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
-seed_location_prefix = "./data/seeds/PA/"
-outdir="PAcong_seed/"
-file_prefix = "PAcong"
-
-election_name = "SEN16"
+seed_location_prefix = "./data/seeds/MA_precincts_12_16/"
+outdir="MAcong_seed/"
+file_prefix = "MAcong"
+election_name = "SEN18"
 
 Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
 
@@ -59,21 +58,27 @@ save_district_plot_mod=100
 
 
 #graph = Graph.from_file("./PA.shp")
-graph = Graph.from_json(seed_location_prefix + "PA.json")
-#graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#graph = Graph.from_json(seed_location_prefix + "PA.json")
+#graph = Graph.from_file(seed_location_prefix + "WI.shp")
 #graph = Graph.from_file(seed_location_prefix + "TX_vtds.shp")
 #graph = Graph.from_json(seed_location_prefix + "TX.json")
-
+#graph = Graph.from_file(seed_location_prefix + "OK_precincts.shp")
+graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#print("graph nodes are", graph.nodes)
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
+#elections = [Election("GOV18", {"Democratic": "GOV18D", "Republican": "GOV18R"})]
+elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
+#elections = [Election("G18GOV", {"Democratic": "G18GOVD", "Republican": "G18GOVR"})]
+#elections = [Election("T16SEN", {"Democratic": "T16SEND", "Republican": "T16SENR"})]
 
 
-elections = [
-    Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
-    Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
-    Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
-    Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
-    Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
-]
+# elections = [
+#     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
+#     Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
+#     Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
+#     Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
+#     Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
+# ]
 
 
 # Population updater, for computing how close to equality the district
@@ -86,10 +91,10 @@ election_updaters = {election.name: election for election in elections}
 my_updaters.update(election_updaters)
 
 initial_partition = GeographicPartition(graph, 
-                                        assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
+                                        assignment= "CD", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
-df=gpd.read_file(seed_location_prefix + "PA.shp")
+df=gpd.read_file(seed_location_prefix + "MA_precincts_12_16.shp")
 
 num_districts = len(initial_partition)
 print("the number of districts we got was: ", num_districts)
@@ -98,7 +103,7 @@ print("the number of districts we got was: ", num_districts)
 # we can improve speed by bailing early on unbalanced partitions.
 
 ideal_population = sum(initial_partition["population"].values()) / len(initial_partition)
-print(initial_partition["population"].values())
+#print(initial_partition["population"].values())
 
 # We use functools.partial to bind the extra parameters (pop_col, pop_target, epsilon, node_repeats)
 # of the recom proposal.
@@ -126,35 +131,46 @@ chain = MarkovChain(
     initial_state=initial_partition,
     total_steps=total_steps_in_run
     )
-  
+
+count = 0
 #Run through chain, building 
 for t, part in enumerate(chain):
     geo_score = abs((geo(part, election_name)[0]-geo(part, election_name)[1])/num_districts)  # difference in geo scores divided by number of districts
     eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
     mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    if geo_score <=0.16 and eg_score <= 0.08 and mm_score <=0.16: #We may want to change these values!!
-        print("found it!")
-        print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
-        
-        # export graph of this partition to json file
-        (part.graph).to_json(seed_location_prefix + outdir + file_prefix + "seed.json")
-        
-        # Create the assignment for this partition
-        seed_dict = dict()
-        seed_nodes = list(part.graph.nodes)
-        for node in seed_nodes:
-            seed_dict[node] = part.assignment[node]
-        with open(seed_location_prefix + outdir + file_prefix + "seed_assignment.json", "w") as outfile:
-            json.dump(seed_dict, outfile)
-        
-        #Create plot of this partition and export
-        df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8)) 
-        plot_output_file = seed_location_prefix + outdir + file_prefix + "seed_plot.png" # export plot
-        plt.savefig(plot_output_file)
-        plt.close()
-        break
+    if geo_score <=0.16  and mm_score <=0.16: #We may want to change these values!!  and eg_score < 0.08
+        print("found one!")
+        count = count + 1
+        if count ==1:
+            print("found it!")
+            print("Geo 0 is ", geo(part, election_name)[0], "Geo 1 is " , geo(part, election_name)[1], "GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
+            
+            # export graph of this partition to json file
+            (part.graph).to_json(seed_location_prefix + outdir + file_prefix + "seed.json")
+            #print("partition graph nodes are ", (part.graph).nodes)
+            
+            # Create the assignment for this partition
+            seed_dict = dict()
+            seed_nodes = list(part.graph.nodes)
+            #print(seed_nodes)
+            for node in seed_nodes:
+                seed_dict[node] = int(part.assignment[node]) #Changed for OK
+                
+            #print(seed_dict)
+            with open(seed_location_prefix + outdir + file_prefix + "seed_assignment.json", "w") as outfile:
+                json.dump(seed_dict, outfile)
+            
+            #Create plot of this partition and export
+            df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8)) 
+            plot_output_file = seed_location_prefix + outdir + file_prefix + "seed_plot.png" # export plot
+            plt.savefig(plot_output_file)
+            plt.close()
+            
+            print(geo(part, election_name)[2])
+            (geo(part, election_name)[2]).to_csv("./data/bugs/Seed_df.csv")
+            break
     else:
-        print("GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
+        print("Geo 0 is ", geo(part, election_name)[0], "Geo 1 is " , geo(part, election_name)[1], "GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)
 
 endrun = datetime.datetime.now()
 print ("\nEnd date and time : ", endrun.strftime("%Y-%m-%d %H:%M:%S"))
