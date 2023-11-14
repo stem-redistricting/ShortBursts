@@ -45,10 +45,10 @@ Can also update initial districting plan by changing 'assignment=' in the initia
 beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
-seed_location_prefix = "./data/seeds/MA_precincts_12_16/"
-outdir="MAcong_seed/"
-file_prefix = "MAcong"
-election_name = "SEN18"
+seed_location_prefix = "./data/seeds/MI/"
+outdir="MIupper_seed/"
+file_prefix = "MIupper"
+election_name = "PRES16"
 
 Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
 
@@ -58,19 +58,22 @@ save_district_plot_mod=100
 
 
 #graph = Graph.from_file("./PA.shp")
+graph = Graph.from_file(seed_location_prefix + "mi16_results.shp")
+#graph = Graph.from_json(seed_location_prefix + "wisconsin2011_dualgraph.json")
 #graph = Graph.from_json(seed_location_prefix + "PA.json")
 #graph = Graph.from_file(seed_location_prefix + "WI.shp")
 #graph = Graph.from_file(seed_location_prefix + "TX_vtds.shp")
 #graph = Graph.from_json(seed_location_prefix + "TX.json")
 #graph = Graph.from_file(seed_location_prefix + "OK_precincts.shp")
-graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#graph = Graph.from_file(seed_location_prefix + "OR_precincts.shp")
 #print("graph nodes are", graph.nodes)
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 #elections = [Election("GOV18", {"Democratic": "GOV18D", "Republican": "GOV18R"})]
-elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
+#elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
 #elections = [Election("G18GOV", {"Democratic": "G18GOVD", "Republican": "G18GOVR"})]
 #elections = [Election("T16SEN", {"Democratic": "T16SEND", "Republican": "T16SENR"})]
-
+#elections = [Election("SSEN16", {"Democratic": "SSEN16D", "Republican": "SSEN16R"})]
+elections = [Election("PRES16", {"Democratic": "PRES16D", "Republican": "PRES16R"})]
 
 # elections = [
 #     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
@@ -91,10 +94,11 @@ election_updaters = {election.name: election for election in elections}
 my_updaters.update(election_updaters)
 
 initial_partition = GeographicPartition(graph, 
-                                        assignment= "CD", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
+                                        assignment= "SENDIST", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
-df=gpd.read_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#df=gpd.read_file(seed_location_prefix + "OR_precincts.shp")
+df=gpd.read_file(seed_location_prefix + "mi16_results.shp")
 
 num_districts = len(initial_partition)
 print("the number of districts we got was: ", num_districts)
@@ -110,7 +114,7 @@ ideal_population = sum(initial_partition["population"].values()) / len(initial_p
 proposal = partial(recom,
                    pop_col="TOTPOP",
                    pop_target=ideal_population,
-                   epsilon=0.05,
+                   epsilon=0.11,
                    node_repeats=2
                   )
 
@@ -119,7 +123,7 @@ compactness_bound = constraints.UpperBound(
     2*len(initial_partition["cut_edges"])
 )
 
-pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.05)
+pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.11)
 
 chain = MarkovChain(
     proposal=proposal,
@@ -138,7 +142,7 @@ for t, part in enumerate(chain):
     geo_score = abs((geo(part, election_name)[0]-geo(part, election_name)[1])/num_districts)  # difference in geo scores divided by number of districts
     eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
     mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    if geo_score <=0.16  and mm_score <=0.16: #We may want to change these values!!  and eg_score < 0.08
+    if geo_score <=0.16 and eg_score < 0.08 and mm_score <=0.16: #We may want to change these values!!  
         print("found one!")
         count = count + 1
         if count ==1:
@@ -166,8 +170,8 @@ for t, part in enumerate(chain):
             plt.savefig(plot_output_file)
             plt.close()
             
-            print(geo(part, election_name)[2])
-            (geo(part, election_name)[2]).to_csv("./data/bugs/Seed_df.csv")
+            #print(geo(part, election_name)[2])
+            #(geo(part, election_name)[2]).to_csv("./data/bugs/Seed_df.csv")
             break
     else:
         print("Geo 0 is ", geo(part, election_name)[0], "Geo 1 is " , geo(part, election_name)[1], "GEO is ", geo_score, " EG is ", eg_score, " MM is ", mm_score)

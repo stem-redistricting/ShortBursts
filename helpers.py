@@ -158,7 +158,7 @@ def geo(part, election):
         #Add to returned list:
         geo_scores_list.append(geo_score)
     
-    geo_scores_list.append(geo_df)
+    #geo_scores_list.append(geo_df)
     
     return geo_scores_list
 

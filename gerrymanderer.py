@@ -20,7 +20,7 @@ from helpers import geo, declination
 
 
 def config_markov_chain(initial_part, num_districts, election_name, iters=1000, epsilon=0.05, compactness=True, 
-                        geo_constraint = False, eg_constraint = False, mm_constraint = False, 
+                        geo_constraint = False, eg_constraint = False, mm_constraint = False, dec_constraint = False,
                         pop="TOT_POP", accept_func=None):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
@@ -54,6 +54,10 @@ def config_markov_chain(initial_part, num_districts, election_name, iters=1000, 
         #geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
         geo_bound = constraints.Bounds(lambda p: [(geo(p, election_name)[0] - geo(p, election_name)[1])/num_districts], (-0.16, 0.16))
         cs.append(geo_bound)
+        
+    if dec_constraint:
+        dec_bound = constraints.Bounds(lambda p: [declination(p, election_name)], (-0.16, 0.16))
+        cs.append(dec_bound)
 
     if accept_func == None: accept_func = accept.always_accept
     is_valid = constraints.Validator(cs)  #added
@@ -164,7 +168,7 @@ class Gingleator:
 
                 if tracking_fun != None: tracking_fun(part, i, j)
                 
-                (geo(part, self.election_name)[2]).to_csv("./data/bugs/Chain_df.csv")
+                #(geo(part, self.election_name)[2]).to_csv("./data/bugs/Chain_df.csv")
 
         return (max_part, observed_num_ops, all_scores_df)
 
@@ -419,6 +423,48 @@ class Gingleator:
                 if tracking_fun != None: tracking_fun(part, i, j)
 
         return (max_part, observed_num_ops)
+    
+        
+    """
+    Ellen added DECLINATION run below
+    """
+    
+    def dec_short_burst_run(self, num_bursts, num_steps, verbose=False,
+                        maximize=True, tracking_fun=None): #checkpoint_file=None):
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        """
+        short_burst_run: preforms a short burst run using the instance's score function.
+                         Each burst starts at the best preforming plan of the previous
+                         burst.  If there's a tie, the later observed one is selected.
+                         This declination run ensures that declination is according to dec_constraint above
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+            tracking_fun: Function to save information about each observed plan.
+        """
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        for i in range(num_bursts):
+            if verbose: print("*", end="", flush=True)
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, election_name = self.election_name, iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        dec_constraint = True)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+
+                if tracking_fun != None: tracking_fun(part, i, j)
+
+        return (max_part, observed_num_ops)
 
     
     """
@@ -498,9 +544,9 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             geo_scores = geo(part, self.election_name)
-            if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True #NOTE: This choice is super arbitrary!!!  
+            if maximize and part_score >= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.16: return True #NOTE: This choice is super arbitrary!!!  
             # We need to discuss!  Same goes for below!!!
-            elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.08: return True
+            elif not maximize and part_score <= prev_score and abs(geo_scores[0]-geo_scores[1])/self.seats < 0.16: return True
             else: return random.random() < p
 
         for i in range(num_bursts):
@@ -547,8 +593,8 @@ class Gingleator:
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
             mm_score = self.mm(part, self.target_perc, self.seats)
-            if maximize and part_score >= prev_score and mm_score < 0.08 and mm_score > -0.08: return True #Again, we may want to change these bounds
-            elif not maximize and part_score <= prev_score  and mm_score < 0.08 and mm_score > -0.08: return True
+            if maximize and part_score >= prev_score and mm_score < 0.08 and mm_score > -0.16: return True #Again, we may want to change these bounds
+            elif not maximize and part_score <= prev_score  and mm_score < 0.08 and mm_score > -0.16: return True
             else: return random.random() < p
 
         for i in range(num_bursts):
@@ -567,6 +613,54 @@ class Gingleator:
     
         return (max_part, observed_num_ops)
 
+    """
+    Ellen added the DECLINATION biased run below
+    """
+    
+    def dec_biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
+                              verbose=False, maximize=True):
+        """
+        biased_short_burst_run: preforms a biased short burst run using the instance's score function.
+                                Each burst is a biased run markov chain, starting at the best preforming 
+                                plan of the previous burst.  If there's a tie, the later observed 
+                                one is selected.
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            p:          probability of a plan with a worse preforming score (|EG|>0.8) within a burst
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+        """
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+
+        def biased_acceptance_function(part):
+            if part.parent == None: return True
+            part_score = self.score(part, self.target_perc, self.threshold)
+            prev_score = self.score(part.parent, self.target_perc, self.threshold)
+            dec_score = declination(part, self.election_name)
+            if maximize and part_score >= prev_score and abs(dec_score) < 0.16: return True   
+            # We need to discuss!  Same goes for below!!!
+            elif not maximize and part_score <= prev_score and abs(dec_score) < 0.16: return True
+            else: return random.random() < p
+
+        for i in range(num_bursts):
+            if verbose: print("Burst:", i)
+            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col,
+                                        accept_func= biased_acceptance_function)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+    
+        return (max_part, observed_num_ops)
 
 
     """

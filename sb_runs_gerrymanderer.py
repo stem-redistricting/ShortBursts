@@ -37,12 +37,16 @@ python sb_runs_gerrymanderer.py TX cong 500 10 SEN14D 0
 
 python sb_runs_gerrymanderer.py OK cong 500 10 GOV18D 0 
 
+python sb_runs_gerrymanderer.py MI cong 500 10 PRES16D 0 
+
+python sb_runs_gerrymanderer.py OR cong 500 10 GOV18D 0 
+
 
 """
 parser = argparse.ArgumentParser(description="SB Chain run", 
                                  prog="sb_runs_gerrymanderer.py")
 parser.add_argument("state", metavar="state_id", type=str,
-                    choices=["PA", "MA", "TX", "OK"],
+                    choices=["PA", "MA", "TX", "OK", "MI", "OR"],
                     help="which state to run chains on")
 parser.add_argument("map", metavar = "map_type", type = str,
                     choices = ["cong", "lower", "upper"],
@@ -60,8 +64,8 @@ args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
 #Probably these should eventually be arguments, as above
-METRIC = "GEO"
 #METRIC = "EG"
+METRIC = "GEO"
 #METRIC = "MM"
 #METRIC = None
 BIAS = False
@@ -69,7 +73,7 @@ BIAS = False
 
 
 num_h_districts = {"PAcong": 18, "PAupper": 50, "PAlower": 203, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31, "OKcong": 5,
-                   "OKlower": 101, "OKupper": 48}
+                   "OKlower": 101, "OKupper": 48, "MIcong": 13, "MIupper": 38, "MIlower": 110, "ORcong": 5, "ORupper": 30, "ORlower": 60}
 
 
 score_functs = {0: None, 1: Gingleator.reward_partial_dist, 
@@ -83,7 +87,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.05
+EPS = 0.11
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -92,7 +96,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_vtds/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -173,10 +177,10 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_vtds/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
-print(cddict.items())
+#print(cddict.items())
 cddict = {int(k):v for k,v in cddict.items()}  #changed this from int(k)
 
 
@@ -242,6 +246,15 @@ for n in range(N_SAMPS):
         else:
             print("Performing a short burst run with Mean Median difference restricted")
             sb_obs = gingles.mm_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                             maximize=True, verbose=False)
+    elif METRIC == "DECLINATION":
+        if BIAS:
+            print("Performing a biased short burst run using the Declination")
+            sb_obs = gingles.dec_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                             maximize=True, verbose=False)
+        else:
+            print("Performing a short burst run with Mean Median difference restricted")
+            sb_obs = gingles.dec_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
     else:
         print("Doing a short burst while evaluating all metrics.")
