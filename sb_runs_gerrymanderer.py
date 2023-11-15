@@ -67,6 +67,7 @@ args = parser.parse_args()
 #METRIC = "EG"
 METRIC = "GEO"
 #METRIC = "MM"
+#METRIC = "DECLINATION"
 #METRIC = None
 BIAS = False
 
@@ -96,7 +97,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_vtds/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -177,7 +178,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}_vtds/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 #print(cddict.items())
@@ -253,7 +254,7 @@ for n in range(N_SAMPS):
             sb_obs = gingles.dec_biased_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
         else:
-            print("Performing a short burst run with Mean Median difference restricted")
+            print("Performing a short burst run with Declination restricted")
             sb_obs = gingles.dec_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
     else:
