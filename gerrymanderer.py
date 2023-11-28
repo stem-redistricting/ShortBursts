@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import random
 from statistics import (mean, median)
-from helpers import geo, declination
+from helpers import geo, declination_1, declination_false
 
 
 def config_markov_chain(initial_part, num_districts, election_name, iters=1000, epsilon=0.05, compactness=True, 
@@ -56,7 +56,7 @@ def config_markov_chain(initial_part, num_districts, election_name, iters=1000, 
         cs.append(geo_bound)
         
     if dec_constraint:
-        dec_bound = constraints.Bounds(lambda p: [declination(p, election_name)], (-0.16, 0.16))
+        dec_bound = constraints.Bounds(lambda p: [declination_1(p, election_name)], (-0.16, 0.16))
         cs.append(dec_bound)
 
     if accept_func == None: accept_func = accept.always_accept
@@ -160,7 +160,7 @@ class Gingleator:
                 pp_dict = polsby_popper(part)
                 all_scores_df.at[i*num_steps+j, "Polsby Popper Average"] = sum(pp_dict.values())/len(pp_dict)
                 all_scores_df.at[i*num_steps+j, "Polsby Popper Min"] = min(pp_dict.values())
-                all_scores_df.at[i*num_steps+j, "Declination"] = declination(part, self.election_name)
+                all_scores_df.at[i*num_steps+j, "Declination"] = declination_false(part, self.election_name)
                 if maximize:
                     max_part = (part, part_score) if part_score >= max_part[1] else max_part
                 else:
@@ -640,7 +640,7 @@ class Gingleator:
             if part.parent == None: return True
             part_score = self.score(part, self.target_perc, self.threshold)
             prev_score = self.score(part.parent, self.target_perc, self.threshold)
-            dec_score = declination(part, self.election_name)
+            dec_score = declination_1(part, self.election_name)
             if maximize and part_score >= prev_score and abs(dec_score) < 0.16: return True   
             # We need to discuss!  Same goes for below!!!
             elif not maximize and part_score <= prev_score and abs(dec_score) < 0.16: return True

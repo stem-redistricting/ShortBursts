@@ -88,7 +88,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.11
+EPS = 0.12
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -97,7 +97,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_precincts_12_16/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_precincts/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -178,7 +178,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}_precincts_12_16/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_precincts/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 #print(cddict.items())

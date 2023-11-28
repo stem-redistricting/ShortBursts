@@ -22,7 +22,7 @@ random.seed(12345678)
 import matplotlib.pyplot as plt
 from gerrychain import (GeographicPartition, Partition, Graph, MarkovChain,
                         proposals, updaters, constraints, accept, Election)
-from helpers import geo, declination
+from helpers import geo, declination_1
 from gerrychain.proposals import recom
 from functools import partial
 import pandas
@@ -45,10 +45,10 @@ Can also update initial districting plan by changing 'assignment=' in the initia
 beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
-seed_location_prefix = "./data/seeds/PA/"
-outdir="PAlower_seed/"
-file_prefix = "PAlower"
-election_name = "T16SEN"
+seed_location_prefix = "./data/seeds/MA_precincts_12_16/"
+outdir="MAcong_seed/"
+file_prefix = "MAcong"
+election_name = "SEN18"
 
 Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
 
@@ -60,7 +60,8 @@ save_district_plot_mod=100
 #graph = Graph.from_file("./PA.shp")
 #graph = Graph.from_file(seed_location_prefix + "mi16_results.shp")
 #graph = Graph.from_json(seed_location_prefix + "wisconsin2011_dualgraph.json")
-graph = Graph.from_json(seed_location_prefix + "PA.json")
+#graph = Graph.from_json(seed_location_prefix + "PA.json")
+graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
 #graph = Graph.from_file(seed_location_prefix + "WI.shp")
 #graph = Graph.from_file(seed_location_prefix + "TX_vtds.shp")
 #graph = Graph.from_json(seed_location_prefix + "TX.json")
@@ -69,9 +70,9 @@ graph = Graph.from_json(seed_location_prefix + "PA.json")
 #print("graph nodes are", graph.nodes)
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 #elections = [Election("GOV18", {"Democratic": "GOV18D", "Republican": "GOV18R"})]
-#elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
+elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
 #elections = [Election("G18GOV", {"Democratic": "G18GOVD", "Republican": "G18GOVR"})]
-elections = [Election("T16SEN", {"Democratic": "T16SEND", "Republican": "T16SENR"})]
+#elections = [Election("T16SEN", {"Democratic": "T16SEND", "Republican": "T16SENR"})]
 #elections = [Election("SSEN16", {"Democratic": "SSEN16D", "Republican": "SSEN16R"})]
 #elections = [Election("PRES16", {"Democratic": "PRES16D", "Republican": "PRES16R"})]
 
@@ -94,10 +95,11 @@ election_updaters = {election.name: election for election in elections}
 my_updaters.update(election_updaters)
 
 initial_partition = GeographicPartition(graph, 
-                                        assignment= "HDIST", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
+                                        assignment= "CD", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
-df=gpd.read_file(seed_location_prefix + "PA.shp")
+df=gpd.read_file(seed_location_prefix + "MA_precincts_12_16.shp")
+#df=gpd.read_file(seed_location_prefix + "PA.shp")
 #df=gpd.read_file(seed_location_prefix + "OR_precincts.shp")
 #df=gpd.read_file(seed_location_prefix + "mi16_results.shp")
 
@@ -115,7 +117,7 @@ ideal_population = sum(initial_partition["population"].values()) / len(initial_p
 proposal = partial(recom,
                    pop_col="TOTPOP",
                    pop_target=ideal_population,
-                   epsilon=0.11,
+                   epsilon=0.05,
                    node_repeats=2
                   )
 
@@ -124,7 +126,7 @@ compactness_bound = constraints.UpperBound(
     2*len(initial_partition["cut_edges"])
 )
 
-pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.11)
+pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.05)
 
 chain = MarkovChain(
     proposal=proposal,
@@ -143,8 +145,8 @@ for t, part in enumerate(chain):
     geo_score = abs((geo(part, election_name)[0]-geo(part, election_name)[1])/num_districts)  # difference in geo scores divided by number of districts
     eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
     mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    dec_score = abs(declination(part, election_name)) # absolute value of declination
-    if geo_score <=0.16 and eg_score < 0.08 and mm_score <=0.16: #We may want to change these values!!  
+    dec_score = abs(declination_1(part, election_name)) # absolute value of declination
+    if geo_score <=0.16 and eg_score < 0.08 and mm_score <=0.16 and dec_score < 0.16: #We may want to change these values!!  
         print("found one!")
         count = count + 1
         if count ==1:
