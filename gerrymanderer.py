@@ -46,12 +46,7 @@ def config_markov_chain(initial_part, num_districts, election_name, iters=1000, 
         mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.16, 0.16))
         cs.append(mm_bound)
     
-    #NOTE: Right now this checks that the difference in geo scores is between -2 and 2!
-    #NOTE: Right now the GEO code is written so that the election is hard coded.  We'll want to change this later.
-    #Surely this should eventually change
-    #NOTE: If we want to, we could make the geo/num_dists be in between -0.08 and 0.08 now (b/c seats is in the config)
     if geo_constraint:
-        #geo_bound = constraints.Bounds(lambda p: [geo(p, election_name)[0] - geo(p, election_name)[1]], (-2, 2))
         geo_bound = constraints.Bounds(lambda p: [(geo(p, election_name)[0] - geo(p, election_name)[1])/num_districts], (-0.16, 0.16))
         cs.append(geo_bound)
         
@@ -173,132 +168,6 @@ class Gingleator:
         return (max_part, observed_num_ops, all_scores_df)
 
 
-    def variable_len_short_burst(self, num_iters, stuck_buffer=10,
-                                 maximize=True, verbose=False):
-        """
-        variable_len_short_burst: preforms a variable length short burst run using the instance's 
-                                  score function. Each burst starts at the best preforming plan of 
-                                  the previous burst.  If there's a tie, the later observed one is 
-                                  selected.
-        args:
-            num_iters:      the total number of steps to take (aka plans to sample)
-            stuck_buffer:   Factor specifying how long to tolerate no improvement, before increasing
-                            the burst length.
-            verbose:        flag - indicates whether to prints the burst number at the beginning 
-                                    of each burst
-            maximize:       flag - indicates where to prefer plans with higher or lower scores.
-        """
-        max_part = (self.part, self.score(self.part, self.target_perc,
-                        self.threshold))
-        observed_num_ops = np.zeros(num_iters)
-        time_stuck = 0
-        burst_len = 2
-        i = 0
-
-        while(i < num_iters):
-            if verbose: print("*", end="", flush=True)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=burst_len,
-                                        epsilon=self.epsilon, pop=self.pop_col)
-            for j, part in enumerate(chain):
-                part_score = self.score(part, self.target_perc, self.threshold)
-                observed_num_ops[i] = part_score
-
-                if part_score <= max_part[1]: time_stuck += 1
-                else: time_stuck = 0
-
-                if maximize:
-                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
-                else:
-                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
-                
-                i += 1
-                if i >= num_iters: break
-            if time_stuck >= stuck_buffer*burst_len : burst_len *= 2
-
-        return (max_part, observed_num_ops)
-
-
-    def biased_run(self, num_iters, p=0.25, maximize=True, verbose=False):
-        """
-        biased_run: preforms a biased (or tilted) run using the instance's score function.  The
-                    chain always accepts a new proposal with the same or a better score and accepts
-                    proposals with a worse score with some probability.
-        args:
-            num_iters:  total number of steps to take (aka plans to sample)
-            p:          probability of a plan with a worse preforming score
-            verbose:    flag - indicates whether to prints the burst number at the beginning 
-                                    of each burst
-            maximize:   flag - indicates where to prefer plans with higher or lower scores.
-        """
-        max_part = (self.part, self.score(self.part, self.target_p,
-                    self.threshold))
-        observed_num_ops = np.zeros(num_iters)
-        
-        def biased_acceptance_function(part):
-            if part.parent == None: return True
-            part_score = self.score(part, self.target_perc, self.threshold)
-            prev_score = self.score(part.parent, self.target_perc, self.threshold)
-            if maximize and part_score >= prev_score: return True
-            elif not maximize and part_score <= prev_score: return True
-            else: return random.random() < p
-
-        chain = config_markov_chain(self.part, num_districts = self.seats, iters=num_iters,
-                                    epsilon=self.epsilon, pop=self.pop_col,
-                                    accept_func= biased_acceptance_function)
-        for i, part in enumerate(chain):
-            if verbose and i % 100 == 0: print("*", end="", flush=True)
-            part_score = self.score(part, self.target_perc, self.threshold)
-            observed_num_ops[i] = part_score
-            if maximize:
-                max_part = (part, part_score) if part_score >= max_part[1] else max_part
-            else:
-                max_part = (part, part_score) if part_score <= max_part[1] else max_part
-
-        return (max_part, observed_num_ops)
-
-
-    def biased_short_burst_run(self, num_bursts, num_steps, p=0.25, 
-                              verbose=False, maximize=True):
-        """
-        biased_short_burst_run: preforms a biased short burst run using the instance's score function.
-                                Each burst is a biased run markov chain, starting at the best preforming 
-                                plan of the previous burst.  If there's a tie, the later observed 
-                                one is selected.
-        args:
-            num_steps:  how many steps to run an unbiased markov chain for during each burst
-            num_bursts: how many bursts to preform
-            p:          probability of a plan with a worse preforming score, within a burst
-            verbose:    flag - indicates whether to prints the burst number at the beginning of 
-                               each burst
-            maximize:   flag - indicates where to prefer plans with higher or lower scores.
-        """
-        max_part = (self.part, self.score(self.part, self.target_perc,
-                    self.threshold)) 
-        observed_num_ops = np.zeros((num_bursts, num_steps))
-
-        def biased_acceptance_function(part):
-            if part.parent == None: return True
-            part_score = self.score(part, self.target_perc, self.threshold)
-            prev_score = self.score(part.parent, self.target_perc, self.threshold)
-            if maximize and part_score >= prev_score: return True
-            elif not maximize and part_score <= prev_score: return True
-            else: return random.random() < p
-
-        for i in range(num_bursts):
-            if verbose: print("Burst:", i)
-            chain = config_markov_chain(max_part[0], num_districts = self.seats, iters=num_steps,
-                                        epsilon=self.epsilon, pop=self.pop_col,
-                                        accept_func= biased_acceptance_function)
-
-            for j, part in enumerate(chain):
-                part_score = self.score(part, self.target_perc, self.threshold)
-                observed_num_ops[i][j] = part_score
-                if maximize:
-                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
-                else:
-                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
-    
-        return (max_part, observed_num_ops)
     
     """
     Ellen added EG run below

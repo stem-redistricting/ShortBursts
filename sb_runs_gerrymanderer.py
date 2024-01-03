@@ -27,7 +27,7 @@ from pathlib import Path # to create directory if needed
 ## Read in 
 """
 Ellen's note: This tells us what to type when running the short burst.  
-wFor example: python sb_runs_gerrymanderer.py PA cong 500 10 T16SEND 0
+For example: python sb_runs_gerrymanderer.py PA cong 500 10 T16SEND 0
 means we'll run the PA map, the congressional map, 500 steps, length of burst is 10 (so 50 bursts), use the 
 T16Senate Democratic column, and use score function labeled 0 (see score_functs below)
 
@@ -65,8 +65,8 @@ args = parser.parse_args()
 #String below tells whether we want to restrict GEO, EG, or mean-median
 #Probably these should eventually be arguments, as above
 #METRIC = "EG"
-METRIC = "GEO"
-#METRIC = "MM"
+#METRIC = "GEO"
+METRIC = "MM"
 #METRIC = "DECLINATION"
 #METRIC = None
 BIAS = False
@@ -88,7 +88,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.12
+EPS = 0.05
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -97,7 +97,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_precincts/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -178,7 +178,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}_precincts/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 #print(cddict.items())
@@ -188,11 +188,7 @@ cddict = {int(k):v for k,v in cddict.items()}  #changed this from int(k)
 init_partition = Partition(graph, assignment=cddict, updaters=my_updaters)
 ## Above is from sb_runs
 
-"""  Only use this when starting from gerrymandered map
-init_partition = GeographicPartition(graph, 
-                                        assignment= "CD_2011", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
-                                        updaters=my_updaters)
-"""
+
 
 gingles = Gingleator(init_partition, num_districts = NUM_DISTRICTS, pop_col=POP_COL,
                      threshold=0.5, score_funct=SCORE_FUNCT, epsilon=EPS,
