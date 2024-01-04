@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import random
 from statistics import (mean, median)
-from helpers import geo, declination_1, declination_false
+from helpers import geo, declination_1, declination_false, std_dev_vote_shares, std_dev_neighborhood_ave, state_v
 
 
 def config_markov_chain(initial_part, num_districts, election_name, iters=1000, epsilon=0.05, compactness=True, 
@@ -84,7 +84,7 @@ class Gingleator:
 
 
 
-    def init_target_perc_col(self,target_pop_col, other_pop_col,
+    def init_target_perc_col(self, target_pop_col, other_pop_col,
                                target_perc_col):
         """
          init_target_perc_col takes the string corresponding to the target
@@ -120,6 +120,7 @@ class Gingleator:
         short_burst_run: preforms a short burst run using the instance's score function.
                          Each burst starts at the best preforming plan of the previous
                          burst.  If there's a tie, the later observed one is selected.
+                         Returns a dataframe containing metric scores from scores_column_names below.
         args:
             num_steps:  how many steps to run an unbiased markov chain for during each burst
             num_bursts: how many bursts to preform
@@ -164,6 +165,68 @@ class Gingleator:
                 if tracking_fun != None: tracking_fun(part, i, j)
                 
                 #(geo(part, self.election_name)[2]).to_csv("./data/bugs/Chain_df.csv")
+
+        return (max_part, observed_num_ops, all_scores_df)
+    
+    def regression_sb_run(self, num_bursts, num_steps, verbose=False,
+                        maximize=True, tracking_fun=None): #checkpoint_file=None):
+        max_part = (self.part, self.score(self.part, self.target_perc,
+                    self.threshold)) 
+        """
+        regression_sb_run: preforms a short burst run using the instance's score function.
+                         Each burst starts at the best preforming plan of the previous
+                         burst.  If there's a tie, the later observed one is selected.
+                         Returns a dataframe containing metric scores from scores_column_names below.
+                         These are used for potential regression analysis.
+        args:
+            num_steps:  how many steps to run an unbiased markov chain for during each burst
+            num_bursts: how many bursts to preform
+            verbose:    flag - indicates whether to prints the burst number at the beginning of 
+                               each burst
+            maximize:   flag - indicates where to prefer plans with higher or lower scores.
+            tracking_fun: Function to save information about each observed plan.
+        """
+        observed_num_ops = np.zeros((num_bursts, num_steps))
+        
+        #Set up dataframe to hold all scores
+        scores_column_names = ["Seat Share", "Vote Share", "District Vote Share Standard Deviation", "Neighborhood Average Standard Deviation", 
+                               "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes",
+                                                      "Efficiency Gap with S, V", "Mean-Median", "Declination", "Polsby Popper Average", "Polsby Popper Min"]
+        all_scores_df = pd.DataFrame(columns = scores_column_names)
+        party = self.target_perc[-6] # either 'D' or 'R'
+        print("party is ", party)
+        
+
+        for i in range(num_bursts):
+            if verbose: print("*", end="", flush=True)
+            chain = config_markov_chain(max_part[0], election_name = self.election_name, num_districts = self.seats, iters=num_steps,
+                                        epsilon=self.epsilon, pop=self.pop_col)
+
+            for j, part in enumerate(chain):
+                part_score = self.score(part, self.target_perc, self.threshold)
+                observed_num_ops[i][j] = part_score
+                all_scores_df.at[i*num_steps+j, "Seat Share"] = part_score/self.seats
+                all_scores_df.at[i*num_steps+j, "Vote Share"] = state_v(part, self.election_name, party)
+                all_scores_df.at[i*num_steps+j, "District Vote Share Standard Deviation"] = std_dev_vote_shares(part, self.election_name, party)
+                all_scores_df.at[i*num_steps+j, "Neighborhood Average Standard Deviation"] = std_dev_neighborhood_ave(part, self.election_name, party)
+                geo_score = geo(part, self.election_name)
+                all_scores_df.at[i*num_steps+j, "GEO Dem"] = geo_score[0]
+                all_scores_df.at[i*num_steps+j, "GEO Rep"] = geo_score[1]
+                all_scores_df.at[i*num_steps+j, "GEO score ratio"] = (geo_score[0] - geo_score[1])/self.seats
+                all_scores_df.at[i*num_steps+j, "Efficiency Gap with wasted votes"] = part[self.election_name].efficiency_gap()
+                all_scores_df.at[i*num_steps+j, "Efficiency Gap with S, V"] = self.eg(part, self.target_perc, self.seats)
+                all_scores_df.at[i*num_steps+j, "Mean-Median"] = self.mm(part, self.target_perc, self.seats)
+                pp_dict = polsby_popper(part)
+                all_scores_df.at[i*num_steps+j, "Polsby Popper Average"] = sum(pp_dict.values())/len(pp_dict)
+                all_scores_df.at[i*num_steps+j, "Polsby Popper Min"] = min(pp_dict.values())
+                all_scores_df.at[i*num_steps+j, "Declination"] = declination_false(part, self.election_name)
+                if maximize:
+                    max_part = (part, part_score) if part_score >= max_part[1] else max_part
+                else:
+                    max_part = (part, part_score) if part_score <= max_part[1] else max_part
+
+                if tracking_fun != None: tracking_fun(part, i, j)
+
 
         return (max_part, observed_num_ops, all_scores_df)
 

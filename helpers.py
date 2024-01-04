@@ -8,6 +8,7 @@ Created on Fri May 12 14:25:02 2023
 
 import pandas as pd
 import numpy as np
+import statistics
 
 """
 GEO metric below.
@@ -158,8 +159,6 @@ def geo(part, election):
         #Add to returned list:
         geo_scores_list.append(geo_score)
     
-    #geo_scores_list.append(geo_df)
-    
     return geo_scores_list
 
 
@@ -204,3 +203,72 @@ def declination_1(part, election):
 
     # A little extra precision just in case :)
     return 2.0*(gamma-theta)/3.1415926535 
+
+def std_dev_vote_shares(part, election, party):
+
+    D_votes = part[election].votes("Democratic")
+    R_votes = part[election].votes("Republican")
+    sum_votes = tuple(rep + dem for rep, dem in zip(R_votes, D_votes))
+    vals = tuple(dem / tot for dem, tot in zip(D_votes, sum_votes)) if party == 'D' else tuple(rep / tot for rep, tot in zip(R_votes, sum_votes))
+    return statistics.stdev(vals)
+
+def std_dev_neighborhood_ave(part, election, party):
+    edges_set=set()
+    for e in part["cut_edges"]:
+        edges_set.add( (part.assignment[e[0]],part.assignment[e[1]]))   
+    edges_list = list(edges_set)
+    edges_df = pd.DataFrame(edges_list)
+
+    districts_set  = set({i for lst in edges_list for i in lst})
+    districts = list(districts_set)
+
+    # Clean up the dataframe (comes from GEO code)
+    tmp_df = edges_df.rename(columns={0:1,1:0},copy=False)
+    all_edges_df = pd.concat([edges_df,tmp_df])
+    all_edges_df.drop_duplicates( keep='first', inplace=True)
+    all_edges_df.reset_index(drop=True, inplace=True)  
+    
+    # Create Election Dataframe
+    
+    D_votes = part[election].votes("Democratic")
+    R_votes = part[election].votes("Republican")
+
+    election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = (part.parts).keys(), columns =[1,2])  
+    
+    num_parties = len(election_df.columns)           
+    total_votes =  election_df.iloc[:,0:num_parties+1].sum(axis=1)
+    
+    party_col = 1 if party == 'D' else 2
+
+    nbhd_df = pd.DataFrame(index=election_df.index, columns=['Vote Share','Avg Neighbor Vote Share'])
+    nbhd_df['Vote Share'] = election_df[party_col]/total_votes
+        
+    #Build lists of neighbors
+    #neighbors[i] will contain list of neighbors of district i
+    neighbors = dict()  #Initiate empty dictionary of neighbors
+    for district in districts:
+        n_index = all_edges_df[(all_edges_df[0] == district)][1].tolist()   #Get index in all_edges_df of neighbors of i
+        neighbors[district] = n_index  #Add values to neighbors list
+    
+    
+     
+    #Compute Avg Neighbor Vote Share 
+    for district in districts:
+        total_neighborhood_votes = nbhd_df.loc[neighbors[district],'Vote Share'].sum() + nbhd_df.at[district,'Vote Share'] 
+        nbhd_df.at[district,'Avg Neighbor Vote Share'] = total_neighborhood_votes / (len(neighbors[district])+1)
+        
+    stdev = nbhd_df['Avg Neighbor Vote Share'].std()
+    
+    return stdev
+        
+def state_v(part, election, party):
+    #Compute the vote share across the whole state
+    D_votes = part[election].votes("Democratic")
+    R_votes = part[election].votes("Republican")
+
+    party_votes = sum(D_votes) if party =='D' else sum(R_votes)
+    total_votes = sum(D_votes) + sum(R_votes)
+    return party_votes/total_votes      
+      
+
+    

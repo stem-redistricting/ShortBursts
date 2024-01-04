@@ -66,9 +66,10 @@ args = parser.parse_args()
 #Probably these should eventually be arguments, as above
 #METRIC = "EG"
 #METRIC = "GEO"
-METRIC = "MM"
+#METRIC = "MM"
 #METRIC = "DECLINATION"
 #METRIC = None
+METRIC = "REGRESSION"
 BIAS = False
 
 
@@ -88,7 +89,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.05
+EPS = 0.11
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -253,6 +254,11 @@ for n in range(N_SAMPS):
             print("Performing a short burst run with Declination restricted")
             sb_obs = gingles.dec_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
+            
+    elif METRIC == "REGRESSION":
+        print("Performing a short burst run with Regression predictors calculated")
+        sb_obs = gingles.regression_sb_run(num_bursts=num_bursts, num_steps=BURST_LEN,
+                                         maximize=True, verbose=False)
     else:
         print("Doing a short burst while evaluating all metrics.")
         sb_obs = gingles.short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
@@ -282,7 +288,7 @@ for n in range(N_SAMPS):
     with open(f_out_part, "wb") as f_out:
         pickle.dump(max_stats, f_out)
         
-    if METRIC == None:
+    if METRIC == None or METRIC == "REGRESSION":
         df_out = "data/results/{}/{}/{}_dists{}_{}opt_{:.1%}_{}_sbl{}_score{}_{}_bias{}_{}.csv".format(args.state + args.map, METRIC, args.state + args.map,
                                                             NUM_DISTRICTS, TARGET_POP_COL, EPS, 
                                                             ITERS, BURST_LEN, args.score, METRIC, BIAS, n)
