@@ -167,7 +167,7 @@ def declination_false(part, election):
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")
     sum_votes = tuple(rep + dem for rep, dem in zip(R_votes, D_votes))
-    vals = tuple(dem / tot for dem, tot in zip(D_votes, sum_votes))
+    vals = tuple(rep / tot for rep, tot in zip(R_votes, sum_votes))
 
   
     bel = sorted(filter(lambda x: x <=  0.5, vals))
@@ -188,7 +188,7 @@ def declination_1(part, election):
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")
     sum_votes = tuple(rep + dem for rep, dem in zip(R_votes, D_votes))
-    vals = tuple(dem / tot for dem, tot in zip(D_votes, sum_votes))
+    vals = tuple(rep / tot for rep, tot in zip(R_votes, sum_votes))
 
   
     bel = sorted(filter(lambda x: x <=  0.5, vals))

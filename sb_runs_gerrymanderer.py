@@ -41,12 +41,14 @@ python sb_runs_gerrymanderer.py MI cong 500 10 PRES16D 0
 
 python sb_runs_gerrymanderer.py OR cong 500 10 GOV18D 0 
 
+python sb_runs_gerrymanderer.py AK lower 500 10 PRES16D 0  
+
 
 """
 parser = argparse.ArgumentParser(description="SB Chain run", 
                                  prog="sb_runs_gerrymanderer.py")
 parser.add_argument("state", metavar="state_id", type=str,
-                    choices=["PA", "MA", "TX", "OK", "MI", "OR"],
+                    choices=["PA", "MA", "TX", "OK", "MI", "OR", "AK"],
                     help="which state to run chains on")
 parser.add_argument("map", metavar = "map_type", type = str,
                     choices = ["cong", "lower", "upper"],
@@ -67,15 +69,15 @@ args = parser.parse_args()
 #METRIC = "EG"
 #METRIC = "GEO"
 #METRIC = "MM"
-#METRIC = "DECLINATION"
+METRIC = "DECLINATION"
 #METRIC = None
-METRIC = "REGRESSION"
+#METRIC = "REGRESSION"
 BIAS = False
 
 
 
 num_h_districts = {"PAcong": 18, "PAupper": 50, "PAlower": 203, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31, "OKcong": 5,
-                   "OKlower": 101, "OKupper": 48, "MIcong": 13, "MIupper": 38, "MIlower": 110, "ORcong": 5, "ORupper": 30, "ORlower": 60}
+                   "OKlower": 101, "OKupper": 48, "MIcong": 13, "MIupper": 38, "MIlower": 110, "ORcong": 5, "ORupper": 30, "ORlower": 60, "AKlower": 40}
 
 
 score_functs = {0: None, 1: Gingleator.reward_partial_dist, 
@@ -98,7 +100,7 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_permissive/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
 #NEW STUFF BELOW
@@ -179,7 +181,7 @@ seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "0
 
 
 ##Below is from sb_runs
-with open("./data/seeds/{}/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_permissive/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
 #print(cddict.items())

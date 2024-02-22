@@ -22,8 +22,8 @@ random.seed(12345678)
 import matplotlib.pyplot as plt
 from gerrychain import (GeographicPartition, Partition, Graph, MarkovChain,
                         proposals, updaters, constraints, accept, Election)
-from helpers import geo, declination_1
 from gerrychain.proposals import recom
+from gerrychain.metrics.compactness import polsby_popper
 from functools import partial
 import pandas
 import geopandas as gpd
@@ -33,7 +33,7 @@ import datetime  #For keeping track of runtime
 import pandas as pd
 import json
 from pathlib import Path # to create directory if needed
-
+from helpers import geo, declination_1, declination_false, std_dev_vote_shares, std_dev_neighborhood_ave, state_v
 
 """
 -------------- parameters that should need changing -----------------
@@ -42,17 +42,27 @@ Can also update initial districting plan by changing 'assignment=' in the initia
 
 """
 
+state = "AK"
+districted_map = "lower"
+election_name = "PRES16"
+EPSILON = 0.11
+total_steps_in_run=20000
+
+num_h_districts = {"PAcong": 18, "PAupper": 50, "PAlower": 203, "MAcong": 9, "MAupper": 40, "MAlower": 160, "TXcong": 36, "TXlower": 150, "TXupper": 31, "OKcong": 5,
+                   "OKlower": 101, "OKupper": 48, "MIcong": 13, "MIupper": 38, "MIlower": 110, "ORcong": 5, "ORupper": 30, "ORlower": 60, "AKlower": 40}
+
+total_seats = num_h_districts[state+districted_map]
+
 beginrun = datetime.datetime.now()
 print ("\nBegin date and time : ", beginrun.strftime("%Y-%m-%d %H:%M:%S"))
 
-seed_location_prefix = "./data/seeds/AK_permissive/"
-outdir="AKlower_seed/"
-file_prefix = "AKlower"
-election_name = "PRES16"
+seed_location_prefix = "./data/seeds/{}_permissive/".format(state)
+outdir="./data/results/{}{}/ensemble/".format(state, districted_map)
+file_prefix = "{}{}".format(state, districted_map)
 
-Path(seed_location_prefix + outdir).mkdir(parents=True, exist_ok=True)
+Path(outdir).mkdir(parents=True, exist_ok=True)
 
-total_steps_in_run=5000
+
 save_district_graph_mod=1
 save_district_plot_mod=100
 
@@ -61,14 +71,14 @@ save_district_plot_mod=100
 #graph = Graph.from_file(seed_location_prefix + "mi16_results.shp")
 #graph = Graph.from_json(seed_location_prefix + "wisconsin2011_dualgraph.json")
 #graph = Graph.from_json(seed_location_prefix + "PA.json")
-#graph = Graph.from_json(seed_location_prefix + "AK_permissive.json")
-graph = Graph.from_file(seed_location_prefix + "AK_precincts/alaska_precincts.shp")
 #graph = Graph.from_file(seed_location_prefix + "MA_precincts_12_16.shp")
 #graph = Graph.from_file(seed_location_prefix + "WI.shp")
-#graph = Graph.from_file(seed_location_prefix + "TX_vtds.shp")
 #graph = Graph.from_json(seed_location_prefix + "TX.json")
 #graph = Graph.from_file(seed_location_prefix + "OK_precincts.shp")
-#graph = Graph.from_file(seed_location_prefix + "OR_precincts.shp")
+
+graphname = seed_location_prefix + "{}_seed/{}seed.json".format(state+districted_map, state + districted_map,)
+graph = Graph.from_json(graphname)
+
 #print("graph nodes are", graph.nodes)
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 #elections = [Election("GOV18", {"Democratic": "GOV18D", "Republican": "GOV18R"})]
@@ -100,12 +110,7 @@ initial_partition = GeographicPartition(graph,
                                         assignment= "HDIST", #"2011_PLA_1",     # "GOV", "REMEDIAL_P", 
                                         updaters=my_updaters)
 
-#df = pd.read_json(seed_location_prefix + "AK_permissive.json")
-df=gpd.read_file(seed_location_prefix + "AK_precincts/alaska_precincts.shp")
-#df=gpd.read_file(seed_location_prefix + "MA_precincts_12_16.shp")
-#df=gpd.read_file(seed_location_prefix + "PA.shp")
-#df=gpd.read_file(seed_location_prefix + "OR_precincts.shp")
-#df=gpd.read_file(seed_location_prefix + "mi16_results.shp")
+
 
 num_districts = len(initial_partition)
 print("the number of districts we got was: ", num_districts)
@@ -121,7 +126,7 @@ ideal_population = sum(initial_partition["population"].values()) / len(initial_p
 proposal = partial(recom,
                    pop_col="TOTPOP",
                    pop_target=ideal_population,
-                   epsilon=0.11,
+                   epsilon=EPSILON,
                    node_repeats=2
                   )
 
@@ -130,7 +135,7 @@ compactness_bound = constraints.UpperBound(
     2*len(initial_partition["cut_edges"])
 )
 
-pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, 0.11)
+pop_constraint = constraints.within_percent_of_ideal_population(initial_partition, EPSILON)
 
 chain = MarkovChain(
     proposal=proposal,
@@ -144,51 +149,38 @@ chain = MarkovChain(
     )
 
 count = 0
+
+#data frame to hold metric scores
+scores_column_names = ["Target Column Districts Won", "GEO score ratio", "GEO Dem", "GEO Rep", "Efficiency Gap with wasted votes",
+                       "Efficiency Gap with S, V", "Mean-Median", "Declination", "Polsby Popper Average", "Polsby Popper Min"]
+all_scores_df = pd.DataFrame(columns = scores_column_names)
+
+
 #Run through chain, building 
 for t, part in enumerate(chain):
-    geo_score = abs((geo(part, election_name)[0]-geo(part, election_name)[1])/num_districts)  # difference in geo scores divided by number of districts
-    eg_score = abs(part[election_name].efficiency_gap())  #absolute value of efficiency gap
-    mm_score = abs(part[election_name].mean_median())  # absolute value of mean-median
-    dec_score = abs(declination_1(part, election_name)) # absolute value of declination
-    if geo_score <=0.16 and eg_score < 0.08 and mm_score <=0.16 and dec_score < 0.16: #We may want to change these values!!  
-        print("found one!")
-        count = count + 1
-        if count ==1:
-            print("found it!")
-            print("Geo 0 is ", geo(part, election_name)[0], "Geo 1 is " , geo(part, election_name)[1], "GEO is ", geo_score,
-                  " EG is ", eg_score, " MM is ", mm_score, "DEC is ", dec_score)
-            
-            # export graph of this partition to json file
-            (part.graph).to_json(seed_location_prefix + outdir + file_prefix + "seed.json")
-            #print("partition graph nodes are ", (part.graph).nodes)
-            
-            # Create the assignment for this partition
-            seed_dict = dict()
-            seed_nodes = list(part.graph.nodes)
-            #print(seed_nodes)
-            for node in seed_nodes:
-                seed_dict[node] = int(part.assignment[node]) #Changed for OK
-                
-            #print(seed_dict)
-            with open(seed_location_prefix + outdir + file_prefix + "seed_assignment.json", "w") as outfile:
-                json.dump(seed_dict, outfile)
-            
-            #Create plot of this partition and export
-            df.plot(pandas.Series(part.assignment), cmap="tab20", figsize=(16,8)) 
-            plot_output_file = seed_location_prefix + outdir + file_prefix + "seed_plot.png" # export plot
-            plt.savefig(plot_output_file)
-            plt.close()
-            
-            #print(geo(part, election_name)[2])
-            #(geo(part, election_name)[2]).to_csv("./data/bugs/Seed_df.csv")
-            break
-    else:
-        print("Geo 0 is ", geo(part, election_name)[0], "Geo 1 is " , geo(part, election_name)[1], "GEO is ", geo_score,
-              " EG is ", eg_score, " MM is ", mm_score, "DEC is ", dec_score)
+    if t%200 == 0:
+        print("At step ", t, " the time so far is ", datetime.datetime.now() - beginrun)
+    dem_seats_won = part[election_name].seats("Democratic")
+    all_scores_df.at[t, "Target Column Districts Won"] = dem_seats_won
+    geo_score = geo(part, election_name)
+    all_scores_df.at[t, "GEO Dem"] = geo_score[0]
+    all_scores_df.at[t, "GEO Rep"] = geo_score[1]
+    all_scores_df.at[t, "GEO score ratio"] = (geo_score[1] - geo_score[0])/total_seats  #changed to correct sign
+    all_scores_df.at[t, "Efficiency Gap with wasted votes"] = part[election_name].efficiency_gap()
+    V = sum(part[election_name].votes("Democratic"))/part[election_name].total_votes()
+    S = dem_seats_won/total_seats
+    all_scores_df.at[t, "Efficiency Gap with S, V"] = S-2*V+1/2
+    all_scores_df.at[t, "Mean-Median"] = part[election_name].mean_median()
+    pp_dict = polsby_popper(part)
+    all_scores_df.at[t, "Polsby Popper Average"] = sum(pp_dict.values())/len(pp_dict)
+    all_scores_df.at[t, "Polsby Popper Min"] = min(pp_dict.values())
+    all_scores_df.at[t, "Declination"] = declination_false(part, election_name)
 
 endrun = datetime.datetime.now()
 print ("\nEnd date and time : ", endrun.strftime("%Y-%m-%d %H:%M:%S"))
 
+df_out = outdir+file_prefix+"ensemble{}{}{:.1%}{}.csv".format(state, districted_map,  EPSILON, total_steps_in_run)
+all_scores_df.to_csv(df_out, header=True) 
     
 diff=endrun-beginrun
 print("\nTotal time: ", str(diff))

@@ -43,7 +43,7 @@ def config_markov_chain(initial_part, num_districts, election_name, iters=1000, 
         cs.append(eg_bound)
         
     if mm_constraint:
-        mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.16, 0.16))
+        mm_bound = constraints.Bounds(lambda p: [p[election_name].mean_median()], (-0.08, 0.08))
         cs.append(mm_bound)
     
     if geo_constraint:
