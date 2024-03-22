@@ -2,6 +2,5 @@
 
 This code was used for the creation of the analyses in the artical with the above name, authored by T. Ratliff, S. Somersille, and E. Veomett.  <br>
 
-Scripts sb_runs_gerrymanderer and gerrymanderer based heavily on code from Cannon et al's [Short Bursts](https://github.com/vrdi/shortbursts-gingles) code. <br>
+Scripts sb_runs_gerrymanderer and gerrymanderer based heavily on code from Cannon et al's <a href = "https://github.com/vrdi/shortbursts-gingles", target = "_blank">Short Bursts</a> code. <br>
 
-<script src='https://cdn.jsdelivr.net/gh/eddymens/markdown-external-link-script@v2.0.0/main.min.js'></script>
