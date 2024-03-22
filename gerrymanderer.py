@@ -20,7 +20,7 @@ from helpers import geo, declination_1, declination_false, std_dev_vote_shares, 
 
 
 def config_markov_chain(initial_part, num_districts, election_name, iters=1000, epsilon=0.05, compactness=True, 
-                        geo_constraint = False, eg_constraint = False, mm_constraint = False, dec_constraint = False,
+                        geo_constraint = False, eg_constraint = False, mm_constraint = False, dec_constraint = False, 
                         pop="TOT_POP", accept_func=None):
     ideal_population = np.nansum(list(initial_part["population"].values())) / len(initial_part)
 
@@ -53,6 +53,7 @@ def config_markov_chain(initial_part, num_districts, election_name, iters=1000, 
     if dec_constraint:
         dec_bound = constraints.Bounds(lambda p: [declination_1(p, election_name)], (-0.16, 0.16))
         cs.append(dec_bound)
+
 
     if accept_func == None: accept_func = accept.always_accept
     is_valid = constraints.Validator(cs)  #added
@@ -397,7 +398,7 @@ class Gingleator:
                 if tracking_fun != None: tracking_fun(part, i, j)
 
         return (max_part, observed_num_ops)
-
+    
     
     """
     Ellen added the EG biased run below

@@ -31,6 +31,8 @@ For example: python sb_runs_gerrymanderer.py PA cong 500 10 T16SEND 0
 means we'll run the PA map, the congressional map, 500 steps, length of burst is 10 (so 50 bursts), use the 
 T16Senate Democratic column, and use score function labeled 0 (see score_functs below)
 
+Below are the maps we used for our study:
+
 python sb_runs_gerrymanderer.py MA cong 500 10 SEN18D 0  
 
 python sb_runs_gerrymanderer.py TX cong 500 10 SEN14D 0  
@@ -65,12 +67,12 @@ parser.add_argument("score", metavar="score_function", type=int,
 args = parser.parse_args()
 
 #String below tells whether we want to restrict GEO, EG, or mean-median
-#Probably these should eventually be arguments, as above
+
 #METRIC = "EG"
 #METRIC = "GEO"
 #METRIC = "MM"
-METRIC = "DECLINATION"
-#METRIC = None
+#METRIC = "DECLINATION"
+METRIC = None
 #METRIC = "REGRESSION"
 BIAS = False
 
@@ -91,7 +93,7 @@ ITERS = args.iters
 POP_COL = "TOTPOP"
 N_SAMPS = 10
 SCORE_FUNCT = None #score_functs[args.score]
-EPS = 0.11
+EPS = 0.12
 TARGET_POP_COL = args.col
 ELECTION = args.col[:-1]  #remove the party name
 
@@ -100,56 +102,10 @@ ELECTION = args.col[:-1]  #remove the party name
 
 print("Reading in Data/Graph", flush=True)
 
-graphname = "./data/seeds/{}_permissive/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
+graphname = "./data/seeds/{}_precincts/{}_seed/{}seed.json".format(args.state, args.state + args.map, args.state + args.map)
 graph = Graph.from_json(graphname)
 
-#NEW STUFF BELOW
-# elections = [
-#     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
-#     Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
-#     Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
-#     Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
-#     Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
-# ]
-#NEW STUFF ABOVE
-#elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
-#elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 
-#Note: The stuff above and below is redundant right now and should be fixed/condensed at some point
-# my_updaters = {"population" : Tally(POP_COL, alias="population"),
-#                 "VAP": Tally("VAP"),
-#                 "BVAP": Tally("BVAP"),
-#                 "HVAP": Tally("HVAP"),
-#                 "WVAP": Tally("WVAP"),
-#                 "T16SENR": Tally("T16SENR"), #added
-#                 "T16SEND": Tally("T16SEND"), #added
-#                 "T16SEN": Election(
-#                             "2016 Senate",
-#                             {"Democratic": "T16SEND", "Republican": "T16SENR"},
-#                             alias="T16SEN" #added to do eg . . .
-#                             ),
-#                 "PRES16R": Tally("PRES16R"),
-#                 #"ELECTION": election,
-#                 "nWVAP": lambda p: {k: v - p["WVAP"][k] for k,v in p["VAP"].items()},
-#                 "cut_edges": cut_edges}
-# my_updaters = {"population" : Tally(POP_COL, alias="population"),
-#                "SEN18R": Tally("SEN18R"), #added
-#                "SEN18D": Tally("SEN18D"), #added
-#                "SEN18": Election(
-#                            "2018 Senate",
-#                            {"Democratic": "SEN18D", "Republican": "SEN18R"},
-#                            alias="SEN18" #added to do eg . . .
-#                            ),
-#                "cut_edges": cut_edges}
-# my_updaters = {"population" : Tally(POP_COL, alias="population"),
-#                "SEN14R": Tally("SEN14R"), #added
-#                "SEN14D": Tally("SEN14D"), #added
-#                "SEN14": Election(
-#                            "2014 Senate",
-#                            {"Democratic": "SEN14D", "Republican": "SEN14R"},
-#                            alias="SEN14" #added to do eg . . .
-#                            ),
-#                "cut_edges": cut_edges}
 elections = [Election(ELECTION, {"Democratic": ELECTION+"D", "Republican": ELECTION + "R"})]
 my_updaters = {"population" : Tally(POP_COL, alias="population"),
                 ELECTION+"R": Tally(ELECTION+"R"), #added
@@ -175,22 +131,16 @@ print("Creating seed plan", flush=True)
 
 print("using " + ELECTION + " election")
 
-total_pop = sum([graph.nodes()[n][POP_COL] for n in graph.nodes()])
-
-seed_bal = {"AR": "05", "CO": "02", "LA": "04", "NM": "04", "TX": "02", "VA": "02"}
 
 
-##Below is from sb_runs
-with open("./data/seeds/{}_permissive/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
+with open("./data/seeds/{}_precincts/{}_seed/{}seed_assignment.json".format(args.state, args.state + args.map, args.state + args.map), "r") as f:
     cddict = json.load(f)
 
-#print(cddict.items())
-cddict = {int(k):v for k,v in cddict.items()}  #changed this from int(k)
+
+cddict = {int(k):v for k,v in cddict.items()}  
 
 
 init_partition = Partition(graph, assignment=cddict, updaters=my_updaters)
-## Above is from sb_runs
-
 
 
 gingles = Gingleator(init_partition, num_districts = NUM_DISTRICTS, pop_col=POP_COL,
@@ -256,6 +206,7 @@ for n in range(N_SAMPS):
             print("Performing a short burst run with Declination restricted")
             sb_obs = gingles.dec_short_burst_run(num_bursts=num_bursts, num_steps=BURST_LEN,
                                              maximize=True, verbose=False)
+            
             
     elif METRIC == "REGRESSION":
         print("Performing a short burst run with Regression predictors calculated")

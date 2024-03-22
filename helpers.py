@@ -32,14 +32,13 @@ def geo(part, election):
     # This first bit comes from our recom code
     edges_set=set()
     for e in part["cut_edges"]:
-        edges_set.add( (part.assignment[e[0]],part.assignment[e[1]]))   # This was edited for Oklahoma.  Not sure why it was having leading 0s before
+        edges_set.add( (part.assignment[e[0]],part.assignment[e[1]]))   
     edges_list = list(edges_set)
     edges_df = pd.DataFrame(edges_list)
-    #print("edges: ", edges_df)
+
     districts_set  = set({i for lst in edges_list for i in lst})
     districts = list(districts_set)
-    #print("districts set: ", districts_set)
-    #print("districts set has size: ", len(districts_set))
+
     
     # Clean up the dataframe (comes from GEO code)
     tmp_df = edges_df.rename(columns={0:1,1:0},copy=False)
@@ -51,16 +50,14 @@ def geo(part, election):
     
     D_votes = part[election].votes("Democratic")
     R_votes = part[election].votes("Republican")
-    #dist_num = [i+1 for i in range(len(D_votes))]  # removed this in favor of districts below
-    #print("districts: ", districts)
-    #print("parts: ", (part.parts).keys())
+
     election_df = pd.DataFrame(list(zip(D_votes, R_votes)), index = (part.parts).keys(), columns =[1,2])  
     
     num_parties = len(election_df.columns)           
     total_votes =  election_df.iloc[:,0:num_parties+1].sum(axis=1)
 
     vote_share_df = pd.DataFrame(index=election_df.index,columns=election_df.columns)
-    for i in range(1,num_parties+1):                    #range(1,k) loops through 1, 2, . . . ,k-1
+    for i in range(1,num_parties+1):                   
         vote_share_df[i] = election_df[i]/total_votes
     
     #Below is from GEO code
@@ -75,7 +72,6 @@ def geo(part, election):
     for district in districts:
         n_index = all_edges_df[(all_edges_df[0] == district)][1].tolist()   #Get index in all_edges_df of neighbors of i
         neighbors[district] = n_index  #Add values to neighbors list
-    #print("neighbors: ", neighbors)
     
     #List to hold GEO scores
     geo_scores_list = []

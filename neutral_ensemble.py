@@ -4,7 +4,7 @@ Thursday Feb 25, 2021
 
 Using the ReCom proposal following https://gerrychain.readthedocs.io/en/latest/user/recom.html
 
-Authors: Tommy Ratliff, Ellen Veomett.  Edited by Ellen Veomett for the purpose of creating seed plans.
+Authors: Tommy Ratliff, Ellen Veomett.  Edited by Ellen Veomett for the purpose of creating ensembles for Short Burst analysis.
 
 For reproducability of chain:
     
@@ -79,7 +79,7 @@ save_district_plot_mod=100
 graphname = seed_location_prefix + "{}_seed/{}seed.json".format(state+districted_map, state + districted_map,)
 graph = Graph.from_json(graphname)
 
-#print("graph nodes are", graph.nodes)
+
 #elections = [Election("SEN14", {"Democratic": "SEN14D", "Republican": "SEN14R"})]
 #elections = [Election("GOV18", {"Democratic": "GOV18D", "Republican": "GOV18R"})]
 #elections = [Election("SEN18", {"Democratic": "SEN18D", "Republican": "SEN18R"})]
@@ -87,14 +87,6 @@ graph = Graph.from_json(graphname)
 #elections = [Election("T16SEN", {"Democratic": "T16SEND", "Republican": "T16SENR"})]
 #elections = [Election("SSEN16", {"Democratic": "SSEN16D", "Republican": "SSEN16R"})]
 elections = [Election("PRES16", {"Democratic": "PRES16D", "Republican": "PRES16R"})]
-
-# elections = [
-#     Election("SEN10", {"Democratic": "SEN10D", "Republican": "SEN10R"}),
-#     Election("SEN12", {"Democratic": "USS12D", "Republican": "USS12R"}),
-#     Election("SEN16", {"Democratic": "T16SEND", "Republican": "T16SENR"}),
-#     Election("PRES12", {"Democratic": "PRES12D", "Republican": "PRES12R"}),
-#     Election("PRES16", {"Democratic": "T16PRESD", "Republican": "T16PRESR"})
-# ]
 
 
 # Population updater, for computing how close to equality the district

@@ -29,14 +29,13 @@ for (state, election, statename) in states_and_elections:
     
     
     map_df = gpd.read_file(fp)
-    #states_and_ut = map_df['st_nm'].tolist()
+
     print(type(map_df))
     
     map_df.plot()
     
     df=gpd.read_file(seed_location_prefix + state)
-    #if state == "PA/PA.shp":
-    #    df = pd.read_json(seed_location_prefix + 'PA/PAcong_seed/PAcongseed.json')
+
     print(df.columns)
     df["Partisan Lean"] = df[election + "R"]/(df[election + "R"]+df[election + "D"])
     print(df["Partisan Lean"])
