@@ -13,7 +13,7 @@ for setting the random.seed for gerrychain
 and https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables
 for setting the environment variable PYTHONHASHSEED=0  
 
-***Seems to work to always produce same chain. Change random.seed to get different one***
+***Always produces same chain. Change random.seed to get different one***
 
 """
 from gerrychain.random import random
