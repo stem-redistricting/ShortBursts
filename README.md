@@ -1,4 +1,4 @@
-# Don't Trust A Single Metric
+# Don't Trust A Single Gerrymandering Metric
 
 This code was used for the creation of the analyses in the artical with the above name, authored by T. Ratliff, S. Somersille, and E. Veomett.  <br>
 
